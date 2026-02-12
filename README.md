@@ -880,11 +880,15 @@ in the Software without restriction...
 ### Core Team
 
 - **Aryan** - [@aryanb1906](https://github.com/aryanb1906) - *Project Lead*
+- **Aditya** - [@bigbrainbarik](https://github.com/bigbrainbarik) - *Contributor*
 
 ### Contributors
 
 <a href="https://github.com/aryanb1906/ARTH-MITRA/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=aryanb1906/ARTH-MITRA" />
+</a>
+<a href="https://github.com/bigbrainbarik/blackjack-ai-engine/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=bigbrainbarik/blackjack-ai-engine" />
 </a>
 
 ---
