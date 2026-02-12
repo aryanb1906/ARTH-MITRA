@@ -898,6 +898,23 @@ in the Software without restriction...
 
 ---
 
+## 📞 Contact & Support
+
+### Get Help
+
+- 📧 **Email**: support@arth-mitra.com
+- 💬 **Discord**: [Join our community](https://discord.gg/arthmitra)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/aryanb1906/ARTH-MITRA/issues)
+- 💡 **Discussions**: [GitHub Discussions](https://github.com/aryanb1906/ARTH-MITRA/discussions)
+
+### Follow Us
+
+- 🐦 **Twitter**: [@ArthmMitra](https://twitter.com/ArthmMitra)
+- 💼 **LinkedIn**: [Arth-Mitra](https://linkedin.com/company/arth-mitra)
+- 📘 **Facebook**: [Arth-Mitra](https://facebook.com/arthmitra)
+
+---
+
 ## 🗺️ Roadmap
 
 ### Phase 1: MVP (Current) ✅
