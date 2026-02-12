@@ -881,6 +881,8 @@ in the Software without restriction...
 
 - **Aryan** - [@aryanb1906](https://github.com/aryanb1906) - *Contributor*
 - **Aditya** - [@bigbrainbarik](https://github.com/bigbrainbarik) - *Contributor*
+- **Naman** - [@newman05](https://github.com/newman05) - *Contributor*
+
 
 ### Contributors
 
@@ -889,6 +891,9 @@ in the Software without restriction...
 </a>
 <a href="https://github.com/bigbrainbarik/blackjack-ai-engine/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=bigbrainbarik/blackjack-ai-engine" />
+</a>
+<a href="https://github.com/newman05/pdfparse/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=newman05/pdfparse" />
 </a>
 
 ---
