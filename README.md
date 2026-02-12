@@ -879,7 +879,7 @@ in the Software without restriction...
 
 ### Core Team
 
-- **Aryan** - [@aryanb1906](https://github.com/aryanb1906) - *Project Lead*
+- **Aryan** - [@aryanb1906](https://github.com/aryanb1906) - *Contributor*
 - **Aditya** - [@bigbrainbarik](https://github.com/bigbrainbarik) - *Contributor*
 
 ### Contributors
@@ -899,23 +899,6 @@ in the Software without restriction...
 - **Income Tax Department** - For comprehensive tax documentation
 - **Open Source Community** - For amazing tools and libraries
 - **All Contributors** - For making this project better
-
----
-
-## 📞 Contact & Support
-
-### Get Help
-
-- 📧 **Email**: support@arth-mitra.com
-- 💬 **Discord**: [Join our community](https://discord.gg/arthmitra)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/aryanb1906/ARTH-MITRA/issues)
-- 💡 **Discussions**: [GitHub Discussions](https://github.com/aryanb1906/ARTH-MITRA/discussions)
-
-### Follow Us
-
-- 🐦 **Twitter**: [@ArthmMitra](https://twitter.com/ArthmMitra)
-- 💼 **LinkedIn**: [Arth-Mitra](https://linkedin.com/company/arth-mitra)
-- 📘 **Facebook**: [Arth-Mitra](https://facebook.com/arthmitra)
 
 ---
 
