@@ -882,6 +882,7 @@ in the Software without restriction...
 - **Aryan** - [@aryanb1906](https://github.com/aryanb1906) - *Contributor*
 - **Aditya** - [@bigbrainbarik](https://github.com/bigbrainbarik) - *Contributor*
 - **Naman** - [@newman05](https://github.com/newman05) - *Contributor*
+- **Poushali** -[@patrapoushali](https://github.com/patrapoushali) - *Contributor*
 
 
 ### Contributors
