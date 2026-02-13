@@ -19,6 +19,19 @@
 
 ---
 
+## 🎉 Latest Updates
+
+**✅ System Ready with Google Gemini AI Integration!**
+
+- 🤖 **Gemini API Configured**: Using `gemini-1.5-flash` for intelligent, context-aware responses
+- 📚 **RAG Pipeline Active**: 12 documents indexed (9 PDFs + 2 TXT + 1 CSV) with 1822+ knowledge chunks
+- 🎨 **Beautiful Markdown Rendering**: AI responses now display with structured formatting, tables, and styling
+- 🚀 **Frontend on Port 3100**: Modern Next.js interface with real-time chat
+- ⚡ **Backend on Port 8000**: FastAPI server with automatic document indexing
+- 💡 **Smart Fallback**: OpenRouter API as backup if Gemini is unavailable
+
+---
+
 ## 📋 Table of Contents
 
 - [🎯 Problem Statement](#-problem-statement)

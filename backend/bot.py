@@ -325,7 +325,7 @@ class ArthMitraBot:
                 model="gemini-1.5-flash",
                 temperature=0.3,
                 google_api_key=gemini_key,
-                convert_system_messages_to_human=True  # Gemini doesn't support system messages
+                convert_system_message_to_human=True  # Gemini doesn't support system messages
             )
         else:
             print("🤖 Using OpenRouter AI (gpt-4o-mini)")
