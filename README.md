@@ -881,7 +881,7 @@ in the Software without restriction...
 
 - **Aryan** - [@aryanb1906](https://github.com/aryanb1906) - *Contributor*
 - **Aditya** - [@bigbrainbarik](https://github.com/bigbrainbarik) - *Contributor*
-- **Naman** - [@newman05](https://github.com/newman05) - *Contributor*
+- **Naman** - [@nmncodes](https://github.com/nmncodes) - *Contributor*
 - **Poushali** -[@patrapoushali](https://github.com/patrapoushali) - *Contributor*
 
 
@@ -893,8 +893,8 @@ in the Software without restriction...
 <a href="https://github.com/bigbrainbarik/blackjack-ai-engine/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=bigbrainbarik/blackjack-ai-engine" />
 </a>
-<a href="https://github.com/newman05/pdfparse/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=newman05/pdfparse" />
+<a href="https://github.com/nmncodes/pdfparse/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nmncodes/pdfparse" />
 </a>
 <a href="https://github.com/patrapoushali/pdfparse/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=patrapoushali/ARTH-MITRA" />
