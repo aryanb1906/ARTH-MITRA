@@ -897,7 +897,7 @@ in the Software without restriction...
   <img src="https://contrib.rocks/image?repo=newman05/pdfparse" />
 </a>
 <a href="https://github.com/patrapoushali/pdfparse/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=patrapoushali/pdfparse" />
+  <img src="https://contrib.rocks/image?repo=patrapoushali/ARTH-MITRA" />
 </a>
 
 ---
