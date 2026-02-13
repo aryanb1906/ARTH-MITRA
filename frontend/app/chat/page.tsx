@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText } from 'lucide-react'
+import { ArrowLeft, Send, Bookmark, Clock, User, Plus, MoreVertical, RefreshCw, AlertCircle, Upload } from 'lucide-react'
 import { sendMessage as sendChatMessage, uploadDocument } from '@/lib/api'
 
 interface Message {
@@ -53,7 +53,6 @@ export default function ChatPage() {
     income: '₹15 LPA',
     category: 'Salaried Professional'
   })
-  const [showNewChat, setShowNewChat] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
 
   const recentQueries: RecentQuery[] = [
@@ -70,26 +69,25 @@ export default function ChatPage() {
     scrollToBottom()
   }, [messages])
 
-  const handleSendMessage = async () => {
-    if (!input.trim()) return
+  const handleSendMessage = async (messageText?: string) => {
+    const contentToSend = (messageText ?? input).trim()
+    if (!contentToSend) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
-      content: input,
+      content: contentToSend,
       timestamp: new Date()
     }
 
     setMessages(prev => [...prev, userMessage])
-    const userInput = input
     setInput('')
     setIsLoading(true)
     setShowSuggestions(false)
 
     try {
-      // Call real API
-      const response = await sendChatMessage(userInput)
-      
+      const response = await sendChatMessage(contentToSend)
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
@@ -101,10 +99,12 @@ export default function ChatPage() {
       setMessages(prev => [...prev, aiMessage])
     } catch (error) {
       console.error('Chat error:', error)
+      const fallback = 'Sorry, I encountered an error connecting to the server. Please make sure the backend is running and try again.'
+      const errorText = error instanceof Error ? error.message : fallback
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: 'Sorry, I encountered an error connecting to the server. Please make sure the backend is running and try again.',
+        content: errorText,
         timestamp: new Date(),
         sources: []
       }
@@ -122,12 +122,8 @@ export default function ChatPage() {
     )
   }
 
-  const handleSuggestedQuery = (query: string) => {
-    setInput(query)
-    setTimeout(() => {
-      const event = new KeyboardEvent('keydown', { key: 'Enter' })
-      document.querySelector('input')?.dispatchEvent(event)
-    }, 0)
+  const handleSuggestedQuery = async (query: string) => {
+    await handleSendMessage(query)
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,7 +270,7 @@ export default function ChatPage() {
               <p className="text-sm font-semibold text-foreground">{profile.income}</p>
               <p className="text-xs text-muted-foreground">Age {profile.age}</p>
             </div>
-            <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+            <Button variant="ghost" size="icon" className="hover:bg-primary/10" aria-label="Refresh chat">
               <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
@@ -363,6 +359,8 @@ export default function ChatPage() {
                 {message.type === 'ai' && (
                   <div className="flex gap-1 mt-1">
                     <button
+                      type="button"
+                      aria-label={bookmarks.includes(message.id) ? 'Remove bookmark' : 'Save bookmark'}
                       onClick={() => toggleBookmark(message.id)}
                       className="flex-shrink-0 p-2 hover:bg-muted rounded-lg transition-colors"
                       title={bookmarks.includes(message.id) ? 'Remove bookmark' : 'Save bookmark'}
@@ -418,14 +416,14 @@ export default function ChatPage() {
               className="rounded-full"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading || isUploading}
-              title="Upload PDF, CSV, or TXT file"
+              aria-label="Upload PDF, CSV, or TXT file"
             >
               <Upload className="w-4 h-4" />
             </Button>
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => {
+              onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
                   handleSendMessage()
@@ -436,7 +434,7 @@ export default function ChatPage() {
               disabled={isLoading || isUploading}
             />
             <Button
-              onClick={handleSendMessage}
+              onClick={() => handleSendMessage()}
               disabled={isLoading || isUploading || !input.trim()}
               size="lg"
               className="rounded-full gap-2"

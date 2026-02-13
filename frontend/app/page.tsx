@@ -4,19 +4,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cpu, Github, Mail, Phone, CheckCircle2, TrendingUp, BarChart3, Lightbulb, Award } from 'lucide-react'
-import { useEffect, useState } from "react"
 
 export default function Page() {
-  {/* backend test */}
-  
-  // const [msg, setMsg] = useState("")
-
-  // useEffect(() => {
-  //   fetch("http://localhost:8000/hi")
-  //     .then(res => res.json())
-  //     .then(data => setMsg(data.text))
-  //     .catch(() => setMsg("Backend not connected"))
-  // }, [])
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -46,14 +35,6 @@ export default function Page() {
           </div>
         </div>
       </nav>
-
-      {/* {msg && (
-        <p className="mt-4 text-sm text-primary font-medium">
-          {msg}
-        </p>
-      )} */}
-
-
       {/* Hero Section */}
       <section className="relative px-4 md:px-6 py-20 md:py-40 max-w-7xl mx-auto overflow-hidden">
         <div className="absolute top-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
@@ -80,10 +61,11 @@ export default function Page() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button className="w-full md:w-auto bg-gray-500 border border-border hover:bg-gray-600">
-              Watch Demo Video
-              {/*Remember to add a demo link*/}
-            </Button>
+            <a href="#how-it-works" className="w-full md:w-auto">
+              <Button className="w-full md:w-auto bg-gray-500 border border-border hover:bg-gray-600">
+                Explore How It Works
+              </Button>
+            </a>
           </div>
 
           {/* Stats Row */}
