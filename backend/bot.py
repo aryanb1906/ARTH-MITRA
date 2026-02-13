@@ -1,6 +1,6 @@
 """
 Arth-Mitra AI Bot - RAG-based financial assistant
-Uses LangChain + Google Gemini + ChromaDB for document retrieval and response generation
+Uses LangChain + OpenRouter + ChromaDB for document retrieval and response generation
 """
 
 import os
@@ -9,7 +9,7 @@ import glob
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple, List
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader, TextLoader
@@ -273,12 +273,12 @@ class ArthMitraBot:
         self._retriever = None
         self._indexed_files = set()
     
-    def initialize(self, google_api_key: Optional[str] = None, auto_index: bool = True):
+    def initialize(self, auto_index: bool = True):
         """Initialize the bot with embeddings and LLM"""
-        api_key = google_api_key or os.getenv("GOOGLE_API_KEY")
+        api_key = os.getenv("OPENROUTER_API_KEY")
         
         if not api_key:
-            raise ValueError("Google API key not found. Set GOOGLE_API_KEY env variable.")
+            raise ValueError("OpenRouter API key not found. Set OPENROUTER_API_KEY in .env file.")
         
         # Initialize embeddings (HuggingFace - runs locally, free)
         self.embeddings = HuggingFaceEmbeddings(
@@ -286,11 +286,13 @@ class ArthMitraBot:
         )
         
         # Initialize LLM
-        self.llm = ChatGoogleGenerativeAI(
-            model="models/gemini-flash-latest",
-            temperature=0.3,
-            google_api_key=api_key
+        self.llm = ChatOpenAI(
+        model="openai/gpt-4o-mini",
+        temperature=0.3,
+        openai_api_key=api_key,
+        openai_api_base="https://openrouter.ai/api/v1",
         )
+
         
         # Load or create vector store
         if os.path.exists(CHROMA_PERSIST_DIR):
@@ -602,7 +604,8 @@ If you have questions about current gold investment options in India or tax impl
         return {
             "initialized": self._initialized,
             "documents_indexed": doc_count,
-            "model": "gemini-2.0-flash" if self.llm else None
+            "model": "openrouter-gpt-4o-mini" if self.llm else None
+
         }
 
 
@@ -622,5 +625,5 @@ def initialize_bot(api_key: Optional[str] = None) -> ArthMitraBot:
     """Initialize and return the bot"""
     bot = get_bot()
     if not bot._initialized:
-        bot.initialize(api_key)
+        bot.initialize()
     return bot

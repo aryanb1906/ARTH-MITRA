@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
         print("Arth-Mitra bot initialized")
     except Exception as e:
         print(f"Bot initialization failed: {e}")
-        print("  Set GOOGLE_API_KEY in .env file")
+        print("  Set OPENROUTER_API_KEY in .env file")
     yield
     # Shutdown: cleanup if needed
     print("Shutting down...")
@@ -77,7 +77,7 @@ def chat(request: ChatRequest):
         if not bot._initialized:
             raise HTTPException(
                 status_code=503,
-                detail="(1)Bot not initialized. Check GOOGLE_API_KEY."
+                detail="Bot not initialized. Check OPENROUTER_API_KEY."
             )
         
         result = bot.get_response(request.message)
@@ -99,7 +99,7 @@ async def upload_document(file: UploadFile = File(...)):
         if not bot._initialized:
             raise HTTPException(
                 status_code=503,
-                detail="(2)Bot not initialized. Check GOOGLE_API_KEY."
+                detail="Bot not initialized. Check OPENROUTER_API_KEY."
             )
         
         # Validate file type
