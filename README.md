@@ -660,42 +660,83 @@ npm install
 pnpm install
 ```
 
-#### 3️⃣ Environment Setup
+#### 3️⃣ Frontend Setup
 
-Create a `.env.local` file in the root directory:
+**Install Frontend Dependencies:**
+
+```bash
+cd frontend
+pnpm install  # or npm install
+```
+
+**Create `frontend/.env.local` file:**
 
 ```env
 # App Configuration
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3100
 NEXT_PUBLIC_APP_NAME=Arth-Mitra
 
-# API Configuration (when backend is ready)
+# Backend API Configuration
 NEXT_PUBLIC_API_URL=http://localhost:8000
-API_KEY=your_api_key_here
-
-# OpenAI Configuration (for AI features)
-OPENAI_API_KEY=your_openai_api_key
-
-# Database (when needed)
-DATABASE_URL=postgresql://user:password@localhost:5432/arthmitra
-
-# Analytics (optional)
-NEXT_PUBLIC_GA_ID=your_google_analytics_id
 ```
 
-#### 4️⃣ Run Development Server
+**Run Frontend Development Server:**
 
 ```bash
-# Start the development server
-npm run dev
+# From frontend directory
+PORT=3100 npm run dev
 
-# Or with turbo (faster)
-npm run mvp
-
-# The app will be available at http://localhost:3000
+# The app will be available at http://localhost:3100
 ```
 
-#### 5️⃣ Build for Production
+#### 4️⃣ Backend Setup
+
+**Install Python Dependencies:**
+
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+**Create `backend/.env` file:**
+
+```env
+# OpenRouter API Key (required for AI chat)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
+**Get your OpenRouter API key:**
+1. Sign up at [OpenRouter.ai](https://openrouter.ai/)
+2. Generate an API key from your dashboard
+3. Add it to `backend/.env`
+
+**Run Backend Server:**
+
+```bash
+# From backend directory
+uvicorn main:app --reload --port 8000
+
+# Backend API will be available at http://localhost:8000
+```
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+uvicorn main:app --reload --port 8000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+PORT=3100 npm run dev
+```
+
+**Access the Application:**
+- Frontend: http://localhost:3100
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+#### 6️⃣ Build for Production
 
 ```bash
 # Create production build
@@ -721,21 +762,29 @@ npm run start
 
 ```
 ARTH-MITRA/
-├── app/                    # Next.js app directory
-│   ├── page.tsx           # Landing page
-│   ├── layout.tsx         # Root layout
-│   ├── globals.css        # Global styles
-│   └── chat/              # Chat interface
-├── components/            # React components
-│   └── ui/               # UI components (shadcn/ui)
-├── lib/                   # Utility functions
-├── hooks/                 # Custom React hooks
-├── public/                # Static assets
-├── styles/                # Additional styles
-├── package.json           # Dependencies
-├── tsconfig.json          # TypeScript config
-├── tailwind.config.ts     # Tailwind CSS config
-└── next.config.mjs        # Next.js config
+├── frontend/              # Next.js frontend application
+│   ├── app/              # Next.js app directory
+│   │   ├── page.tsx      # Landing page
+│   │   ├── layout.tsx    # Root layout
+│   │   ├── globals.css   # Global styles
+│   │   └── chat/         # Chat interface
+│   ├── components/       # React components
+│   │   └── ui/          # UI components (shadcn/ui)
+│   ├── lib/             # Utility functions & API client
+│   ├── hooks/           # Custom React hooks
+│   ├── public/          # Static assets
+│   └── package.json     # Frontend dependencies
+├── backend/              # Python FastAPI backend
+│   ├── main.py          # FastAPI application & endpoints
+│   ├── bot.py           # RAG chatbot logic
+│   ├── requirements.txt # Python dependencies
+│   ├── documents/       # Knowledge base documents
+│   │   ├── gold_data.csv
+│   │   ├── government_schemes_2024.txt
+│   │   └── indian_tax_laws_2024.txt
+│   ├── chroma_db/       # Vector database storage
+│   └── uploads/         # User-uploaded documents
+└── README.md            # This file
 ```
 
 ---

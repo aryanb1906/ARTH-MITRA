@@ -19,7 +19,7 @@ interface Message {
 interface RecentQuery {
   id: string
   title: string
-  timestamp: Date
+  timestamp: string
   category: 'tax' | 'pension' | 'investment' | 'general'
 }
 
@@ -57,9 +57,9 @@ export default function ChatPage() {
   const [showSuggestions, setShowSuggestions] = useState(true)
 
   const recentQueries: RecentQuery[] = [
-    { id: '1', title: 'Tax saving with ₹10 lakh income', timestamp: new Date(Date.now() - 86400000), category: 'tax' },
-    { id: '2', title: 'Best pension scheme comparison', timestamp: new Date(Date.now() - 172800000), category: 'pension' },
-    { id: '3', title: 'Investment portfolio allocation', timestamp: new Date(Date.now() - 259200000), category: 'investment' }
+    { id: '1', title: 'Tax saving with ₹10 lakh income', timestamp: '13/02/2026', category: 'tax' },
+    { id: '2', title: 'Best pension scheme comparison', timestamp: '12/02/2026', category: 'pension' },
+    { id: '3', title: 'Investment portfolio allocation', timestamp: '11/02/2026', category: 'investment' }
   ]
 
   const scrollToBottom = () => {
@@ -89,7 +89,7 @@ export default function ChatPage() {
     try {
       // Call real API
       const response = await sendChatMessage(userInput)
-      
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
@@ -135,7 +135,7 @@ export default function ChatPage() {
     if (!file) return
 
     setIsUploading(true)
-    
+
     // Add system message about upload
     const uploadingMessage: Message = {
       id: Date.now().toString(),
@@ -148,17 +148,17 @@ export default function ChatPage() {
 
     try {
       const response = await uploadDocument(file)
-      
+
       // Update the message with success
-      setMessages(prev => prev.map(msg => 
-        msg.id === uploadingMessage.id 
+      setMessages(prev => prev.map(msg =>
+        msg.id === uploadingMessage.id
           ? { ...msg, content: `✅ ${response.message}\n\nYou can now ask questions about the uploaded document.` }
           : msg
       ))
     } catch (error) {
       console.error('Upload error:', error)
-      setMessages(prev => prev.map(msg => 
-        msg.id === uploadingMessage.id 
+      setMessages(prev => prev.map(msg =>
+        msg.id === uploadingMessage.id
           ? { ...msg, content: `❌ Failed to upload ${file.name}. Please try again.` }
           : msg
       ))
@@ -180,7 +180,7 @@ export default function ChatPage() {
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm font-medium text-foreground">Back Home</span>
           </Link>
-          
+
           <Button className="w-full mb-4 gap-2">
             <Plus className="w-4 h-4" />
             New Chat
@@ -212,7 +212,7 @@ export default function ChatPage() {
                     <Clock className="w-3 h-3 flex-shrink-0 mt-0.5 group-hover:text-primary" />
                     <div className="flex-1">
                       <p className="line-clamp-2">{query.title}</p>
-                      <p className="text-xs opacity-50 mt-1">{query.timestamp.toLocaleDateString()}</p>
+                      <p className="text-xs opacity-50 mt-1">{query.timestamp}</p>
                     </div>
                   </div>
                 </button>
@@ -263,10 +263,10 @@ export default function ChatPage() {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-md">
                 <span className="text-white font-bold text-sm">AM</span>
               </div>
-            <div>
-              <h1 className="text-base font-bold text-foreground">Arth-Mitra Chat</h1>
-              <p className="text-xs text-muted-foreground">AI Financial Assistant</p>
-            </div>
+              <div>
+                <h1 className="text-base font-bold text-foreground">Arth-Mitra Chat</h1>
+                <p className="text-xs text-muted-foreground">AI Financial Assistant</p>
+              </div>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-4">
@@ -317,37 +317,34 @@ export default function ChatPage() {
               className={`flex animate-in fade-in-50 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-2xl flex gap-3 ${
-                  message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
-                }`}
+                className={`max-w-2xl flex gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
+                  }`}
               >
                 {message.type === 'ai' && (
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0 shadow-md">
                     <span className="text-white font-bold text-sm">AM</span>
                   </div>
                 )}
-                
+
                 <div>
                   <div
-                    className={`rounded-2xl px-4 py-3 shadow-sm ${
-                      message.type === 'user'
+                    className={`rounded-2xl px-4 py-3 shadow-sm ${message.type === 'user'
                         ? 'bg-primary text-primary-foreground rounded-br-none'
                         : 'bg-muted text-foreground rounded-bl-none border border-border/40'
-                    }`}
+                      }`}
                   >
                     <p className="text-xs whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                    <p className={`text-xs mt-2 ${
-                      message.type === 'user'
+                    <p className={`text-xs mt-2 ${message.type === 'user'
                         ? 'text-primary-foreground/70'
                         : 'text-muted-foreground'
-                    }`}>
+                      }`}>
                       {message.timestamp.toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit'
                       })}
                     </p>
                   </div>
-                  
+
                   {message.type === 'ai' && message.sources && message.sources.length > 0 && (
                     <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2 ml-3">
                       <span>📚 Sources:</span>
@@ -368,11 +365,10 @@ export default function ChatPage() {
                       title={bookmarks.includes(message.id) ? 'Remove bookmark' : 'Save bookmark'}
                     >
                       <Bookmark
-                        className={`w-4 h-4 ${
-                          bookmarks.includes(message.id)
+                        className={`w-4 h-4 ${bookmarks.includes(message.id)
                             ? 'fill-accent text-accent'
                             : 'text-muted-foreground'
-                        }`}
+                          }`}
                       />
                     </button>
                   </div>
@@ -380,7 +376,7 @@ export default function ChatPage() {
               </div>
             </div>
           ))}
-          
+
           {isLoading && (
             <div className="flex justify-start">
               <div className="flex gap-3">
