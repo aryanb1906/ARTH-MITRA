@@ -80,7 +80,7 @@ export default function Page() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button className="w-full md:w-auto bg-white border border-border">
+            <Button className="w-full md:w-auto bg-gray-500 border border-border hover:bg-gray-600">
               Watch Demo Video
               {/*Remember to add a demo link*/}
             </Button>
