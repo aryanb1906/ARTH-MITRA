@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText } from 'lucide-react'
 import { sendMessage as sendChatMessage, uploadDocument } from '@/lib/api'
+import { MarkdownMessage } from '@/components/markdown-message'
 
 interface Message {
   id: string
@@ -333,7 +334,11 @@ export default function ChatPage() {
                         : 'bg-muted text-foreground rounded-bl-none border border-border/40'
                       }`}
                   >
-                    <p className="text-xs whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    {message.type === 'user' ? (
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    ) : (
+                      <MarkdownMessage content={message.content} />
+                    )}
                     <p className={`text-xs mt-2 ${message.type === 'user'
                         ? 'text-primary-foreground/70'
                         : 'text-muted-foreground'
