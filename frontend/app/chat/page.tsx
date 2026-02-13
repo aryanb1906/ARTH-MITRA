@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText } from 'lucide-react'
+import { sendMessage as sendChatMessage, uploadDocument } from '@/lib/api'
 
 interface Message {
   id: string
@@ -20,25 +21,6 @@ interface RecentQuery {
   title: string
   timestamp: Date
   category: 'tax' | 'pension' | 'investment' | 'general'
-}
-
-const mockResponses: { [key: string]: { response: string; sources: string[] } } = {
-  'tax': { 
-    response: 'Based on government guidelines for income tax optimization:\n\n✓ File your ITR within the deadline (July 31st)\n✓ Use Section 80C for investments up to ₹1.5 lakh (PPF, ELSS, NSC, Life Insurance)\n✓ Claim Section 80D for medical insurance (up to ₹50,000)\n✓ If you earn ₹15 lakh, use Section 80E for education loan interest\n✓ Consider HRA exemption if applicable - get rental agreement\n✓ Keep receipts for 7 years for compliance\n\nTax savings potential: ₹2-3 lakhs per year with proper planning',
-    sources: ['Income Tax Act 1961', 'Section 80C Guidelines', 'Tax Year 2024-25']
-  },
-  'pension': { 
-    response: 'Popular pension schemes for retirement planning:\n\n1. National Pension System (NPS)\n   • Tax deduction up to ₹2 lakh under Section 80CCD\n   • Market-linked returns\n   • Flexible withdrawal\n\n2. Atal Pension Yojana (APY)\n   • Government guaranteed minimum pension\n   • Entry age: 18-40, Pension from 60\n   • Contribution varies with desired pension\n\n3. Senior Citizen Savings Scheme\n   • 8.2% annual interest (currently)\n   • 5-year maturity, renewable\n   • ₹15 lakh maximum\n\n4. Pradhan Mantri Vaya Vandana Yojana\n   • 7.4% guaranteed return\n   • 10-year tenure\n   • Monthly/quarterly/annual payout options',
-    sources: ['PFRDA Guidelines', 'Ministry of Finance Scheme Details']
-  },
-  'investment': { 
-    response: 'Safe investment options for wealth building:\n\n1. National Savings Certificate (NSC)\n   • Government-backed security\n   • 7.7% current return\n   • 5-year maturity\n\n2. ELSS (Equity-Linked Savings Scheme)\n   • ₹1.5 lakh Section 80C deduction\n   • 3-year lock-in\n   • Potential for long-term growth\n\n3. Public Provident Fund (PPF)\n   • 7.1% guaranteed return\n   • 15-year maturity with extension\n   • Tax-free growth and withdrawal\n\n4. Sukanya Samriddhi Yojana (SSY)\n   • For girls\n   • 7.6% guaranteed return\n   • 21-year maturity\n\n5. Fixed Deposits\n   • 6-7% return depending on bank\n   • Insured up to ₹5 lakh by DICGC\n   • Flexible tenure',
-    sources: ['Ministry of Finance', 'RBI Guidelines', 'Insurance Regulatory Authority']
-  },
-  'default': { 
-    response: 'Hello! I\'m Arth-Mitra, your AI financial guide. I can help you understand:\n\n📊 Income Tax\n• Tax calculations and planning\n• Deductions (Section 80C, 80D, 80E, etc.)\n• ITR filing process\n• Tax saving strategies\n\n💰 Investment Schemes\n• Government securities (NSC, SSY, PPF)\n• Pension products (NPS, APY, SCSS)\n• Mutual funds and stocks\n• Risk-return analysis\n\n👴 Retirement Planning\n• Pension schemes\n• Senior citizen benefits\n• Investment growth calculations\n\n🏛️ Government Benefits\n• Social security schemes\n• Subsidies and grants\n• Eligibility criteria\n\nWhat would you like to know today?',
-    sources: ['Public Government Data']
-  }
 }
 
 const suggestedQueries = [
@@ -62,7 +44,9 @@ export default function ChatPage() {
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [bookmarks, setBookmarks] = useState<string[]>([])
   const [profile] = useState({
     age: 32,
@@ -97,23 +81,15 @@ export default function ChatPage() {
     }
 
     setMessages(prev => [...prev, userMessage])
+    const userInput = input
     setInput('')
     setIsLoading(true)
     setShowSuggestions(false)
 
-    // Simulate API call with better delay
-    setTimeout(() => {
-      const lowerInput = input.toLowerCase()
-      let response = mockResponses['default']
-
-      if (lowerInput.includes('tax') || lowerInput.includes('income') || lowerInput.includes('saving') || lowerInput.includes('deduction')) {
-        response = mockResponses['tax']
-      } else if (lowerInput.includes('pension') || lowerInput.includes('retirement') || lowerInput.includes('senior') || lowerInput.includes('apy')) {
-        response = mockResponses['pension']
-      } else if (lowerInput.includes('invest') || lowerInput.includes('scheme') || lowerInput.includes('nps') || lowerInput.includes('ppf') || lowerInput.includes('mutual')) {
-        response = mockResponses['investment']
-      }
-
+    try {
+      // Call real API
+      const response = await sendChatMessage(userInput)
+      
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
@@ -123,8 +99,19 @@ export default function ChatPage() {
       }
 
       setMessages(prev => [...prev, aiMessage])
+    } catch (error) {
+      console.error('Chat error:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        content: 'Sorry, I encountered an error connecting to the server. Please make sure the backend is running and try again.',
+        timestamp: new Date(),
+        sources: []
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
       setIsLoading(false)
-    }, 1200)
+    }
   }
 
   const toggleBookmark = (messageId: string) => {
@@ -141,6 +128,47 @@ export default function ChatPage() {
       const event = new KeyboardEvent('keydown', { key: 'Enter' })
       document.querySelector('input')?.dispatchEvent(event)
     }, 0)
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    
+    // Add system message about upload
+    const uploadingMessage: Message = {
+      id: Date.now().toString(),
+      type: 'ai',
+      content: `📄 Uploading and indexing: **${file.name}**...`,
+      timestamp: new Date(),
+      sources: []
+    }
+    setMessages(prev => [...prev, uploadingMessage])
+
+    try {
+      const response = await uploadDocument(file)
+      
+      // Update the message with success
+      setMessages(prev => prev.map(msg => 
+        msg.id === uploadingMessage.id 
+          ? { ...msg, content: `✅ ${response.message}\n\nYou can now ask questions about the uploaded document.` }
+          : msg
+      ))
+    } catch (error) {
+      console.error('Upload error:', error)
+      setMessages(prev => prev.map(msg => 
+        msg.id === uploadingMessage.id 
+          ? { ...msg, content: `❌ Failed to upload ${file.name}. Please try again.` }
+          : msg
+      ))
+    } finally {
+      setIsUploading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   return (
@@ -375,6 +403,25 @@ export default function ChatPage() {
         {/* Input Area */}
         <div className="border-t border-border/40 bg-white p-4 md:p-6 shadow-lg">
           <div className="max-w-4xl mx-auto flex gap-3">
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".pdf,.csv,.txt,.md"
+              className="hidden"
+            />
+            {/* Upload button */}
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || isUploading}
+              title="Upload PDF, CSV, or TXT file"
+            >
+              <Upload className="w-4 h-4" />
+            </Button>
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -386,11 +433,11 @@ export default function ChatPage() {
               }}
               placeholder="Ask about taxes, schemes, investments..."
               className="flex-1 text-base px-4 py-2 rounded-full border-border/40 focus:ring-2 focus:ring-primary/20"
-              disabled={isLoading}
+              disabled={isLoading || isUploading}
             />
             <Button
               onClick={handleSendMessage}
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || isUploading || !input.trim()}
               size="lg"
               className="rounded-full gap-2"
             >
