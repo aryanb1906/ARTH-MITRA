@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
-    "mvp": "next dev --turbo --hostname 0.0.0.0 --port 3000",
+    "dev": "next dev",
+    "mvp": "next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -47,7 +47,7 @@
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.544.0",
-    "next": "16.1.6",
+    "next": "^15.5.12",
     "next-themes": "^0.4.6",
     "react": "19.2.3",
     "react-day-picker": "8.10.1",
