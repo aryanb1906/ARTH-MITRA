@@ -701,14 +701,33 @@ pip install -r requirements.txt
 **Create `backend/.env` file:**
 
 ```env
-# OpenRouter API Key (required for AI chat)
-OPENROUTER_API_KEY=your_openrouter_api_key_here
+# AI API Key - Use Gemini (recommended) or OpenRouter
+
+# Option 1: Google Gemini (RECOMMENDED - Free & Powerful)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Option 2: OpenRouter (Fallback)
+# OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```
 
-**Get your OpenRouter API key:**
+**Get your Gemini API key (Recommended):**
+1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Sign in with Google account
+3. Click "Create API Key"
+4. Copy the key and add it to `backend/.env`
+5. **FREE** with generous daily limits!
+
+**Alternative - OpenRouter:**
 1. Sign up at [OpenRouter.ai](https://openrouter.ai/)
 2. Generate an API key from your dashboard
-3. Add it to `backend/.env`
+3. Add it to `backend/.env` (uncomment the line)
+
+**Why Gemini?**
+- ✅ **FREE** with high daily limits
+- ✅ Better at understanding Indian languages and context
+- ✅ Faster response times
+- ✅ Excellent markdown formatting
+- ✅ No credit card required
 
 **Run Backend Server:**
 
@@ -717,7 +736,27 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 uvicorn main:app --reload --port 8000
 
 # Backend API will be available at http://localhost:8000
+# You'll see: "🤖 Using Google Gemini AI (gemini-1.5-flash)"
 ```
+
+**What happens on startup:**
+- ✅ Automatically indexes all PDFs, CSVs, and TXT files from `backend/documents/`
+- ✅ Converts them to vector embeddings using HuggingFace
+- ✅ Stores in ChromaDB for fast semantic search
+- ✅ Shows which documents were indexed (e.g., "✓ Indexed 1822 chunks")
+
+**Adding your own data:**
+1. Drop PDF, CSV, or TXT files into `backend/documents/`
+2. Restart the backend
+3. Files are automatically indexed and ready for RAG!
+
+**Current Knowledge Base:**
+- Income Tax Act 1961, Finance Act 2025
+- Government schemes (PPF, NSC, SSY, PMJDY, RD, SCSS)
+- NSDL Personal Finance Primer
+- Gold price historical data
+- Indian tax laws and regulations
+
 
 **Terminal 1 - Backend:**
 ```bash

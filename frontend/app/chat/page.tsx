@@ -330,8 +330,8 @@ export default function ChatPage() {
                 <div>
                   <div
                     className={`rounded-2xl px-4 py-3 shadow-sm ${message.type === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-br-none'
-                        : 'bg-muted text-foreground rounded-bl-none border border-border/40'
+                      ? 'bg-primary text-primary-foreground rounded-br-none'
+                      : 'bg-muted text-foreground rounded-bl-none border border-border/40'
                       }`}
                   >
                     {message.type === 'user' ? (
@@ -340,8 +340,8 @@ export default function ChatPage() {
                       <MarkdownMessage content={message.content} />
                     )}
                     <p className={`text-xs mt-2 ${message.type === 'user'
-                        ? 'text-primary-foreground/70'
-                        : 'text-muted-foreground'
+                      ? 'text-primary-foreground/70'
+                      : 'text-muted-foreground'
                       }`}>
                       {message.timestamp.toLocaleTimeString([], {
                         hour: '2-digit',
@@ -371,8 +371,8 @@ export default function ChatPage() {
                     >
                       <Bookmark
                         className={`w-4 h-4 ${bookmarks.includes(message.id)
-                            ? 'fill-accent text-accent'
-                            : 'text-muted-foreground'
+                          ? 'fill-accent text-accent'
+                          : 'text-muted-foreground'
                           }`}
                       />
                     </button>

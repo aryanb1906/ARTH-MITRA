@@ -10,6 +10,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple, List
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader, TextLoader
@@ -302,23 +303,38 @@ class ArthMitraBot:
     
     def initialize(self, auto_index: bool = True):
         """Initialize the bot with embeddings and LLM"""
-        api_key = os.getenv("OPENROUTER_API_KEY")
+        # Check for Gemini API key first (preferred), then OpenRouter
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
         
-        if not api_key:
-            raise ValueError("OpenRouter API key not found. Set OPENROUTER_API_KEY in .env file.")
+        if not gemini_key and not openrouter_key:
+            raise ValueError(
+                "No API key found. Set either GEMINI_API_KEY or OPENROUTER_API_KEY in .env file.\n"
+                "Gemini is recommended for better performance."
+            )
         
         # Initialize embeddings (HuggingFace - runs locally, free)
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
         
-        # Initialize LLM
-        self.llm = ChatOpenAI(
-        model="openai/gpt-4o-mini",
-        temperature=0.3,
-        openai_api_key=api_key,
-        openai_api_base="https://openrouter.ai/api/v1",
-        )
+        # Initialize LLM - Prefer Gemini if available
+        if gemini_key:
+            print("🤖 Using Google Gemini AI (gemini-1.5-flash)")
+            self.llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                temperature=0.3,
+                google_api_key=gemini_key,
+                convert_system_messages_to_human=True  # Gemini doesn't support system messages
+            )
+        else:
+            print("🤖 Using OpenRouter AI (gpt-4o-mini)")
+            self.llm = ChatOpenAI(
+                model="openai/gpt-4o-mini",
+                temperature=0.3,
+                openai_api_key=openrouter_key,
+                openai_api_base="https://openrouter.ai/api/v1",
+            )
 
         
         # Load or create vector store
@@ -628,11 +644,18 @@ If you have questions about current gold investment options in India or tax impl
             except:
                 doc_count = 0
         
+        # Determine which AI model is being used
+        model_name = None
+        if self.llm:
+            if isinstance(self.llm, ChatGoogleGenerativeAI):
+                model_name = "Google Gemini (gemini-1.5-flash)"
+            else:
+                model_name = "OpenRouter (gpt-4o-mini)"
+        
         return {
             "initialized": self._initialized,
             "documents_indexed": doc_count,
-            "model": "openrouter-gpt-4o-mini" if self.llm else None
-
+            "model": model_name
         }
 
 
