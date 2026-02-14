@@ -23,7 +23,7 @@
 
 **✨ NEW: Enhanced UI/UX Features Added!**
 
-- 👤 **Profile Editing**: Edit your profile (age, income, category) directly from the chat interface with localStorage persistence
+- 👤 **Profile Editing**: Update compulsory fields (age, income, employment status, tax regime, homeowner status) plus optional fields (children, parents age, investments, goals, risk appetite) with localStorage persistence
 - 📱 **Collapsible Sidebars**: Toggle left (profile & history) and right (saved messages) sidebars for maximum chat space
 - 📊 **Document Query Analytics**: Visual bar chart showing document query history and usage patterns
 - 🎨 **Beautiful Markdown Rendering**: AI responses display with structured formatting, tables, and styling
@@ -445,7 +445,22 @@ Calculate tax liability under both old and new tax regimes.
 Comprehensive library of financial terms, concepts, and best practices.
 
 ### 👤 **Profile Management**
-Edit your profile (age, income, employment category) directly from the chat interface with localStorage persistence for personalized recommendations.
+Edit your profile directly from the chat interface with localStorage persistence for personalized recommendations.
+
+**Compulsory fields**
+- Age
+- Income
+- Employment status
+- Tax regime
+- Homeowner status
+
+**Optional fields**
+- Children and children ages
+- Parents age
+- Investment capacity
+- Risk appetite
+- Financial goals
+- Existing investments
 
 ### 📱 **Collapsible UI**
 Toggle sidebar panels (profile history, saved messages) to maximize chat space and focus on conversations.
