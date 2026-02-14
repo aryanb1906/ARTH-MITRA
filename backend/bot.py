@@ -375,6 +375,13 @@ class ArthMitraBot:
         self._initialized = False
         self._retriever = None
         self._indexed_files = set()
+
+    def _append_sources_section(self, response: str, sources: List[str]) -> str:
+        """Append an explicit Sources section to the response body."""
+        if not sources:
+            sources = ["Knowledge Base"]
+        sources_lines = "\n".join([f"- {source}" for source in sources])
+        return f"{response}\n\n---\nSources:\n{sources_lines}"
     
     def initialize(self, auto_index: bool = True):
         """Initialize the bot with embeddings and LLM"""
@@ -670,6 +677,9 @@ If you have questions about current gold investment options in India or tax impl
         # Check if this is a gold price query with a specific date
         gold_response = self._handle_gold_price_query(query)
         if gold_response:
+            gold_response["response"] = self._append_sources_section(
+                gold_response["response"], gold_response.get("sources", [])
+            )
             return gold_response
         
         # Format user profile for context
@@ -685,9 +695,14 @@ If you have questions about current gold investment options in India or tax impl
         if self.rag_chain is None or doc_count == 0:
             prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{context}", "No specific documents available.").replace("{question}", query)
             response = self.llm.invoke(prompt)
+            sources = ["General Knowledge - No documents indexed yet"]
+            response_text = self._append_sources_section(
+                self._extract_text(response.content),
+                sources
+            )
             return {
-                "response": self._extract_text(response.content),
-                "sources": ["General Knowledge - No documents indexed yet"]
+                "response": response_text,
+                "sources": sources
             }
         
         # Get source documents for citation
@@ -712,9 +727,10 @@ If you have questions about current gold investment options in India or tax impl
             if source_str not in sources:
                 sources.append(source_str)
         
+        final_sources = sources if sources else ["Knowledge Base"]
         return {
-            "response": result,
-            "sources": sources if sources else ["Knowledge Base"]
+            "response": self._append_sources_section(result, final_sources),
+            "sources": final_sources
         }
     
     def get_status(self) -> Dict:
