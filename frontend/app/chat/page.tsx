@@ -5,9 +5,26 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText } from 'lucide-react'
+import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react'
 import { sendMessage as sendChatMessage, uploadDocument } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface Message {
   id: string
@@ -49,13 +66,21 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [bookmarks, setBookmarks] = useState<string[]>([])
-  const [profile] = useState({
+  const [profile, setProfile] = useState({
     age: 32,
     income: '₹15 LPA',
     category: 'Salaried Professional'
   })
   const [showNewChat, setShowNewChat] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
+
+  // Sidebar collapse states
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true)
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true)
+
+  // Profile editing
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [editedProfile, setEditedProfile] = useState(profile)
 
   const recentQueries: RecentQuery[] = [
     { id: '1', title: 'Tax saving with ₹10 lakh income', timestamp: '13/02/2026', category: 'tax' },
@@ -131,6 +156,23 @@ export default function ChatPage() {
     }, 0)
   }
 
+  const handleSaveProfile = () => {
+    setProfile(editedProfile)
+    setIsEditingProfile(false)
+    // You could also save to localStorage here
+    localStorage.setItem('userProfile', JSON.stringify(editedProfile))
+  }
+
+  useEffect(() => {
+    // Load profile from localStorage on mount
+    const savedProfile = localStorage.getItem('userProfile')
+    if (savedProfile) {
+      const parsed = JSON.parse(savedProfile)
+      setProfile(parsed)
+      setEditedProfile(parsed)
+    }
+  }, [])
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -174,81 +216,158 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      {/* Toggle Left Sidebar Button */}
+      <button
+        onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+        className="fixed left-0 top-1/2 -translate-y-1/2 z-20 bg-white border border-border/40 rounded-r-lg p-2 shadow-lg hover:bg-slate-50 transition-all"
+        style={{ marginLeft: isLeftSidebarOpen ? '18rem' : '0' }}
+      >
+        {isLeftSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      </button>
+
       {/* Left Sidebar - Profile & History */}
-      <div className="w-72 border-r border-border bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden hidden lg:flex shadow-sm">
-        <div className="p-4 border-b border-border/40">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity mb-4">
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium text-foreground">Back Home</span>
-          </Link>
+      {isLeftSidebarOpen && (
+        <div className="w-72 border-r border-border bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm transition-all duration-300">
+          <div className="p-4 border-b border-border/40">
+            <Link href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity mb-4">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm font-medium text-foreground">Back Home</span>
+            </Link>
 
-          <Button className="w-full mb-4 gap-2">
-            <Plus className="w-4 h-4" />
-            New Chat
-          </Button>
+            <Button className="w-full mb-4 gap-2">
+              <Plus className="w-4 h-4" />
+              New Chat
+            </Button>
 
-          <Card className="p-4 bg-white border border-border/40">
-            <div className="flex items-center gap-2 mb-3">
-              <User className="w-4 h-4 text-primary" />
-              <span className="text-xs font-semibold text-foreground">Your Profile</span>
-            </div>
-            <div className="space-y-2 text-xs text-muted-foreground">
-              <p><span className="font-medium text-foreground">Age:</span> {profile.age}</p>
-              <p><span className="font-medium text-foreground">Income:</span> {profile.income}</p>
-              <p><span className="font-medium text-foreground">Category:</span> {profile.category}</p>
-            </div>
-          </Card>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Recent Queries</h3>
-            <div className="space-y-2">
-              {recentQueries.map((query) => (
-                <button
-                  key={query.id}
-                  className="w-full text-left p-3 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 hover:text-foreground transition-colors border border-transparent hover:border-border/40 group"
-                >
-                  <div className="flex items-start gap-2">
-                    <Clock className="w-3 h-3 flex-shrink-0 mt-0.5 group-hover:text-primary" />
-                    <div className="flex-1">
-                      <p className="line-clamp-2">{query.title}</p>
-                      <p className="text-xs opacity-50 mt-1">{query.timestamp}</p>
+            <Card className="p-4 bg-white border border-border/40">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-semibold text-foreground">Your Profile</span>
+                </div>
+                <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 hover:bg-primary/10"
+                      onClick={() => setEditedProfile(profile)}
+                      title="Edit Profile"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Edit Profile</DialogTitle>
+                      <DialogDescription>
+                        Update your profile information for personalized financial advice.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="age">Age</Label>
+                        <Input
+                          id="age"
+                          type="number"
+                          value={editedProfile.age}
+                          onChange={(e) => setEditedProfile({ ...editedProfile, age: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="income">Annual Income</Label>
+                        <Input
+                          id="income"
+                          value={editedProfile.income}
+                          onChange={(e) => setEditedProfile({ ...editedProfile, income: e.target.value })}
+                          placeholder="e.g., ₹15 LPA"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="category">Employment Category</Label>
+                        <Select
+                          value={editedProfile.category}
+                          onValueChange={(value) => setEditedProfile({ ...editedProfile, category: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Salaried Professional">Salaried Professional</SelectItem>
+                            <SelectItem value="Self-Employed">Self-Employed</SelectItem>
+                            <SelectItem value="Business Owner">Business Owner</SelectItem>
+                            <SelectItem value="Freelancer">Freelancer</SelectItem>
+                            <SelectItem value="Retired">Retired</SelectItem>
+                            <SelectItem value="Student">Student</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                    <DialogFooter>
+                      <Button onClick={() => setIsEditingProfile(false)} variant="outline">Cancel</Button>
+                      <Button onClick={handleSaveProfile}>Save changes</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p><span className="font-medium text-foreground">Age:</span> {profile.age}</p>
+                <p><span className="font-medium text-foreground">Income:</span> {profile.income}</p>
+                <p><span className="font-medium text-foreground">Category:</span> {profile.category}</p>
+              </div>
+            </Card>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div>
+              <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Recent Queries</h3>
+              <div className="space-y-2">
+                {recentQueries.map((query) => (
+                  <button
+                    key={query.id}
+                    className="w-full text-left p-3 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 hover:text-foreground transition-colors border border-transparent hover:border-border/40 group"
+                  >
+                    <div className="flex items-start gap-2">
+                      <Clock className="w-3 h-3 flex-shrink-0 mt-0.5 group-hover:text-primary" />
+                      <div className="flex-1">
+                        <p className="line-clamp-2">{query.title}</p>
+                        <p className="text-xs opacity-50 mt-1">{query.timestamp}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Categories</h3>
+              <div className="space-y-2">
+                {[
+                  { label: 'Income Tax', icon: '📊' },
+                  { label: 'Investments', icon: '💰' },
+                  { label: 'Pensions', icon: '👴' },
+                  { label: 'Govt Schemes', icon: '🏛️' }
+                ].map((cat, i) => (
+                  <button key={i} className="w-full text-left p-2 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 transition-colors">
+                    <span className="mr-2">{cat.icon}</span> {cat.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div>
-            <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Categories</h3>
-            <div className="space-y-2">
-              {[
-                { label: 'Income Tax', icon: '📊' },
-                { label: 'Investments', icon: '💰' },
-                { label: 'Pensions', icon: '👴' },
-                { label: 'Govt Schemes', icon: '🏛️' }
-              ].map((cat, i) => (
-                <button key={i} className="w-full text-left p-2 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 transition-colors">
-                  <span className="mr-2">{cat.icon}</span> {cat.label}
-                </button>
-              ))}
-            </div>
+          <div className="p-4 border-t border-border/40 space-y-2">
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+              <AlertCircle className="w-4 h-4" />
+              Help & Support
+            </Button>
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+              <MoreVertical className="w-4 h-4" />
+              Settings
+            </Button>
           </div>
         </div>
-
-        <div className="p-4 border-t border-border/40 space-y-2">
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-            <AlertCircle className="w-4 h-4" />
-            Help & Support
-          </Button>
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-            <MoreVertical className="w-4 h-4" />
-            Settings
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -342,10 +461,11 @@ export default function ChatPage() {
                     <p className={`text-xs mt-2 ${message.type === 'user'
                       ? 'text-primary-foreground/70'
                       : 'text-muted-foreground'
-                      }`}>
+                      }`} suppressHydrationWarning>
                       {message.timestamp.toLocaleTimeString([], {
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
+                        hour12: false
                       })}
                     </p>
                   </div>
@@ -452,37 +572,83 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Right Sidebar - Bookmarks (Hidden on small screens) */}
-      <div className="w-72 border-l border-border/40 bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden hidden xl:flex shadow-sm">
-        <div className="p-4 border-b border-border/40">
-          <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-primary" />
-            Saved Responses
-          </h2>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          {bookmarks.length === 0 ? (
-            <div className="text-center py-8">
-              <Bookmark className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">
-                Bookmark AI responses to save them here for quick reference
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {messages
-                .filter(m => bookmarks.includes(m.id))
-                .map(message => (
-                  <Card key={message.id} className="p-3 bg-white border border-border/40 hover:shadow-md transition-shadow cursor-pointer">
-                    <p className="line-clamp-4 text-xs text-muted-foreground leading-relaxed">
-                      {message.content}
-                    </p>
-                  </Card>
+      {/* Toggle Right Sidebar Button */}
+      <button
+        onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-20 bg-white border border-border/40 rounded-l-lg p-2 shadow-lg hover:bg-slate-50 transition-all"
+        style={{ marginRight: isRightSidebarOpen ? '18rem' : '0' }}
+      >
+        {isRightSidebarOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+      </button>
+
+      {/* Right Sidebar - Bookmarks & Analytics */}
+      {isRightSidebarOpen && (
+        <div className="w-72 border-l border-border/40 bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm transition-all duration-300">
+          <div className="p-4 border-b border-border/40">
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Bookmark className="w-4 h-4 text-primary" />
+              Saved Responses
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Document Analytics Chart */}
+            <Card className="p-4 bg-white border border-border/40">
+              <h3 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
+                <BarChart2 className="w-3 h-3 text-primary" />
+                Document Query History
+              </h3>
+              <div className="space-y-2">
+                {/* Simple bar chart representation */}
+                {[
+                  { source: 'Tax Guide', count: 15, color: 'bg-blue-500' },
+                  { source: 'ITR Forms', count: 12, color: 'bg-green-500' },
+                  { source: 'Schemes', count: 8, color: 'bg-purple-500' },
+                  { source: 'Gold Data', count: 5, color: 'bg-yellow-500' },
+                ].map((item, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground truncate">{item.source}</span>
+                      <span className="font-medium text-foreground">{item.count}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div
+                        className={`${item.color} h-2 rounded-full transition-all duration-500`}
+                        style={{ width: `${(item.count / 15) * 100}%` }}
+                      />
+                    </div>
+                  </div>
                 ))}
-            </div>
-          )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Queries from indexed documents
+              </p>
+            </Card>
+
+            {/* Saved Bookmarks */}
+            {bookmarks.length === 0 ? (
+              <div className="text-center py-8">
+                <Bookmark className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  Bookmark AI responses to save them here for quick reference
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold text-foreground">Bookmarked Responses</h3>
+                {messages
+                  .filter(m => bookmarks.includes(m.id))
+                  .map(message => (
+                    <Card key={message.id} className="p-3 bg-white border border-border/40 hover:shadow-md transition-shadow cursor-pointer">
+                      <p className="line-clamp-4 text-xs text-muted-foreground leading-relaxed">
+                        {message.content}
+                      </p>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
