@@ -9,14 +9,14 @@ import { useEffect, useState } from "react"
 export default function Page() {
   {/* backend test */}
   
-  // const [msg, setMsg] = useState("")
-  //
-  // useEffect(() => {
-  //   fetch("http://localhost:8000/ping")
-  //     .then(res => res.json())
-  //     .then(data => setMsg(data.status))
-  //     .catch(() => setMsg("Backend not connected"))
-  // }, [])
+  const [msg, setMsg] = useState("")
+  
+  useEffect(() => {
+    fetch("http://localhost:8000/ping")
+      .then(res => res.json())
+      .then(data => setMsg(data.status))
+      .catch(() => setMsg("Backend not connected"))
+  }, [])
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -47,11 +47,12 @@ export default function Page() {
         </div>
       </nav>
 
-      {/*{msg && (*/}
-      {/*  <p className="mt-4 text-sm text-primary font-medium">*/}
-      {/*    {msg}*/}
-      {/*  </p>*/}
-      {/*)}*/}
+     {msg && (
+      <p className="mt-4 text-sm text-primary font-medium">
+        {msg}
+      </p>
+     )}
+
 
 
       {/* Hero Section */}

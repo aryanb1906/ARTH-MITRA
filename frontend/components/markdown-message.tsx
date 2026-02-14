@@ -11,9 +11,9 @@ interface MarkdownMessageProps {
 
 export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
     return (
+        <div className={cn('prose prose-sm max-w-none', className)}>
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            className={cn('prose prose-sm max-w-none', className)}
             components={{
                 // Headers
                 h1: ({ children }) => (
@@ -76,8 +76,9 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
                 ),
 
                 // Code blocks
-                code: ({ inline, children }) => {
-                    return inline ? (
+                code: ({ children, className }) => {
+                    const isInline = !className;
+                    return isInline ? (
                         <code className="px-1.5 py-0.5 rounded bg-muted text-primary text-xs font-mono">
                             {children}
                         </code>
@@ -118,5 +119,6 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
         >
             {content}
         </ReactMarkdown>
+        </div>
     )
 }
