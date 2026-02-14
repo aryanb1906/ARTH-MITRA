@@ -67,9 +67,20 @@ export default function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [bookmarks, setBookmarks] = useState<string[]>([])
   const [profile, setProfile] = useState({
+    // Compulsory fields
     age: 32,
     income: '₹15 LPA',
-    category: 'Salaried Professional'
+    employmentStatus: 'Salaried - Private',
+    taxRegime: 'Old Regime',
+    homeownerStatus: 'Rented',
+    // Optional fields
+    children: '',
+    childrenAges: '',
+    parentsAge: '',
+    investmentCapacity: '',
+    riskAppetite: '',
+    financialGoals: [] as string[],
+    existingInvestments: [] as string[]
   })
   const [showNewChat, setShowNewChat] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
@@ -113,8 +124,8 @@ export default function ChatPage() {
     setShowSuggestions(false)
 
     try {
-      // Call real API
-      const response = await sendChatMessage(userInput)
+      // Call real API with profile data
+      const response = await sendChatMessage(userInput, profile)
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -257,63 +268,186 @@ export default function ChatPage() {
                       <Edit2 className="w-3 h-3" />
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
+                  <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Edit Profile</DialogTitle>
                       <DialogDescription>
-                        Update your profile information for personalized financial advice.
+                        Update your profile for personalized financial advice. <span className="text-red-500">*</span> = Required
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="age">Age</Label>
-                        <Input
-                          id="age"
-                          type="number"
-                          value={editedProfile.age}
-                          onChange={(e) => setEditedProfile({ ...editedProfile, age: parseInt(e.target.value) || 0 })}
-                        />
+                    <div className="grid gap-6 py-4">
+                      {/* COMPULSORY FIELDS */}
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <span className="text-red-500">*</span> Basic Information
+                        </h3>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="age"><span className="text-red-500">*</span> Age</Label>
+                            <Input
+                              id="age"
+                              type="number"
+                              required
+                              value={editedProfile.age}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, age: parseInt(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="income"><span className="text-red-500">*</span> Annual Income</Label>
+                            <Input
+                              id="income"
+                              required
+                              value={editedProfile.income}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, income: e.target.value })}
+                              placeholder="e.g., ₹15 LPA"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="employmentStatus"><span className="text-red-500">*</span> Employment Status</Label>
+                          <Select
+                            value={editedProfile.employmentStatus}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, employmentStatus: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Salaried - Government">Salaried - Government</SelectItem>
+                              <SelectItem value="Salaried - Private">Salaried - Private</SelectItem>
+                              <SelectItem value="Self-Employed">Self-Employed</SelectItem>
+                              <SelectItem value="Business Owner">Business Owner</SelectItem>
+                              <SelectItem value="Retired">Retired</SelectItem>
+                              <SelectItem value="Unemployed">Unemployed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="taxRegime"><span className="text-red-500">*</span> Tax Regime</Label>
+                          <Select
+                            value={editedProfile.taxRegime}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, taxRegime: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Old Regime">Old Regime (with deductions)</SelectItem>
+                              <SelectItem value="New Regime">New Regime (lower rates)</SelectItem>
+                              <SelectItem value="Not Sure">Not Sure / Need Help</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="homeownerStatus"><span className="text-red-500">*</span> Housing Status</Label>
+                          <Select
+                            value={editedProfile.homeownerStatus}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, homeownerStatus: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Own - With Loan">Own House (with home loan)</SelectItem>
+                              <SelectItem value="Own - No Loan">Own House (fully paid)</SelectItem>
+                              <SelectItem value="Rented">Rented Accommodation</SelectItem>
+                              <SelectItem value="Living with Family">Living with Family</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="income">Annual Income</Label>
-                        <Input
-                          id="income"
-                          value={editedProfile.income}
-                          onChange={(e) => setEditedProfile({ ...editedProfile, income: e.target.value })}
-                          placeholder="e.g., ₹15 LPA"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="category">Employment Category</Label>
-                        <Select
-                          value={editedProfile.category}
-                          onValueChange={(value) => setEditedProfile({ ...editedProfile, category: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Salaried Professional">Salaried Professional</SelectItem>
-                            <SelectItem value="Self-Employed">Self-Employed</SelectItem>
-                            <SelectItem value="Business Owner">Business Owner</SelectItem>
-                            <SelectItem value="Freelancer">Freelancer</SelectItem>
-                            <SelectItem value="Retired">Retired</SelectItem>
-                            <SelectItem value="Student">Student</SelectItem>
-                          </SelectContent>
-                        </Select>
+
+                      {/* OPTIONAL FIELDS */}
+                      <div className="space-y-4 pt-4 border-t">
+                        <h3 className="text-sm font-semibold text-foreground">Optional Information (for better recommendations)</h3>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="children">Number of Children</Label>
+                            <Input
+                              id="children"
+                              type="number"
+                              value={editedProfile.children}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, children: e.target.value })}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="childrenAges">Children Ages</Label>
+                            <Input
+                              id="childrenAges"
+                              value={editedProfile.childrenAges}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, childrenAges: e.target.value })}
+                              placeholder="e.g., 5, 8"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="parentsAge">Parents Age</Label>
+                          <Input
+                            id="parentsAge"
+                            value={editedProfile.parentsAge}
+                            onChange={(e) => setEditedProfile({ ...editedProfile, parentsAge: e.target.value })}
+                            placeholder="e.g., Father 65, Mother 60"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="investmentCapacity">Annual Investment Capacity</Label>
+                          <Select
+                            value={editedProfile.investmentCapacity}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, investmentCapacity: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="₹0-50k">₹0 - ₹50,000</SelectItem>
+                              <SelectItem value="₹50k-1L">₹50,000 - ₹1 Lakh</SelectItem>
+                              <SelectItem value="₹1L-2.5L">₹1 Lakh - ₹2.5 Lakhs</SelectItem>
+                              <SelectItem value="₹2.5L-5L">₹2.5 Lakhs - ₹5 Lakhs</SelectItem>
+                              <SelectItem value="₹5L+">₹5 Lakhs+</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="riskAppetite">Risk Appetite</Label>
+                          <Select
+                            value={editedProfile.riskAppetite}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, riskAppetite: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select risk level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Conservative">Conservative (Fixed returns only)</SelectItem>
+                              <SelectItem value="Moderate">Moderate (Balanced approach)</SelectItem>
+                              <SelectItem value="Aggressive">Aggressive (Market-linked returns)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
                     <DialogFooter>
                       <Button onClick={() => setIsEditingProfile(false)} variant="outline">Cancel</Button>
-                      <Button onClick={handleSaveProfile}>Save changes</Button>
+                      <Button onClick={handleSaveProfile}>Save Profile</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </div>
               <div className="space-y-2 text-xs text-muted-foreground">
-                <p><span className="font-medium text-foreground">Age:</span> {profile.age}</p>
+                <p><span className="font-medium text-foreground">Age:</span> {profile.age} {profile.age >= 60 && '👴'}</p>
                 <p><span className="font-medium text-foreground">Income:</span> {profile.income}</p>
-                <p><span className="font-medium text-foreground">Category:</span> {profile.category}</p>
+                <p><span className="font-medium text-foreground">Status:</span> {profile.employmentStatus}</p>
+                <p><span className="font-medium text-foreground">Tax:</span> {profile.taxRegime}</p>
+                <p><span className="font-medium text-foreground">Home:</span> {profile.homeownerStatus}</p>
+                {profile.children && <p><span className="font-medium text-foreground">Children:</span> {profile.children}</p>}
               </div>
             </Card>
           </div>

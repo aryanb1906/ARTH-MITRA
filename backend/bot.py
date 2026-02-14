@@ -236,6 +236,78 @@ def get_gold_lookup() -> GoldPriceLookup:
         _gold_lookup = GoldPriceLookup()
     return _gold_lookup
 
+
+def format_user_profile(profile: Dict) -> str:
+    """Format user profile information for the system prompt."""
+    if not profile:
+        return ""
+    
+    profile_text = "**USER PROFILE** (Provide personalized recommendations based on this information):\n"
+    
+    # Compulsory fields
+    profile_text += f"- **Age**: {profile.get('age', 'Not specified')}"
+    if profile.get('age', 0) >= 60:
+        profile_text += " (Senior Citizen - eligible for senior citizen schemes)"
+    elif profile.get('age', 0) >= 55:
+        profile_text += " (Near retirement age)"
+    profile_text += "\n"
+    
+    profile_text += f"- **Annual Income**: {profile.get('income', 'Not specified')}\n"
+    profile_text += f"- **Employment Status**: {profile.get('employmentStatus', 'Not specified')}\n"
+    
+    # Add specific notes based on employment
+    emp_status = profile.get('employmentStatus', '')
+    if 'Government' in emp_status:
+        profile_text += "  (Note: Higher NPS employer contribution limit - 14% of salary)\n"
+    elif 'Retired' in emp_status:
+        profile_text += "  (Note: Focus on senior citizen schemes like SCSS, PMVVY)\n"
+    
+    profile_text += f"- **Tax Regime**: {profile.get('taxRegime', 'Not specified')}\n"
+    if profile.get('taxRegime') == 'Old Regime':
+        profile_text += "  (Note: Eligible for 80C, 80D, and other deductions)\n"
+    elif profile.get('taxRegime') == 'New Regime':
+        profile_text += "  (Note: Limited deductions - only NPS employer contribution, no 80C/80D)\n"
+    
+    profile_text += f"- **Housing Status**: {profile.get('homeownerStatus', 'Not specified')}\n"
+    if 'Loan' in profile.get('homeownerStatus', ''):
+        profile_text += "  (Note: Eligible for home loan interest deduction - Section 24)\n"
+    elif 'Rented' in profile.get('homeownerStatus', ''):
+        profile_text += "  (Note: May be eligible for HRA exemption if salaried)\n"
+    
+    # Optional fields (only show if provided)
+    if profile.get('children'):
+        profile_text += f"- **Children**: {profile.get('children')}"
+        if profile.get('childrenAges'):
+            profile_text += f" (Ages: {profile.get('childrenAges')})"
+            # Check for girl child under 10
+            try:
+                ages = [int(age.strip()) for age in profile.get('childrenAges', '').split(',') if age.strip()]
+                if any(age < 10 for age in ages):
+                    profile_text += " - Eligible for Sukanya Samriddhi Yojana if girl child"
+            except:
+                pass
+        profile_text += "\n"
+    
+    if profile.get('parentsAge'):
+        profile_text += f"- **Parents Age**: {profile.get('parentsAge')}\n"
+        # Check if parents are senior citizens
+        if '60' in str(profile.get('parentsAge', '')) or '65' in str(profile.get('parentsAge', '')):
+            profile_text += "  (Note: Additional 80D deduction for senior citizen parents - ₹50,000)\n"
+    
+    if profile.get('investmentCapacity'):
+        profile_text += f"- **Investment Capacity**: {profile.get('investmentCapacity')}\n"
+    
+    if profile.get('riskAppetite'):
+        profile_text += f"- **Risk Appetite**: {profile.get('riskAppetite')}\n"
+        if profile.get('riskAppetite') == 'Conservative':
+            profile_text += "  (Note: Recommend fixed-return instruments like PPF, NSC, SCSS)\n"
+        elif profile.get('riskAppetite') == 'Aggressive':
+            profile_text += "  (Note: Can suggest ELSS, NPS equity allocation, market-linked returns)\n"
+    
+    profile_text += "\n"
+    return profile_text
+
+
 # System prompt for financial guidance
 SYSTEM_PROMPT = """You are Arth-Mitra, an expert AI financial advisor specializing in Indian finance.
 You help users understand:
@@ -243,6 +315,8 @@ You help users understand:
 - Government schemes (NPS, PPF, SSY, APY, etc.)
 - Investment options and their tax implications
 - Retirement planning and pension schemes
+
+{user_profile}
 
 Guidelines for your responses:
 1. **Structure**: Use clear sections with headers (##) when explaining complex topics
@@ -252,7 +326,8 @@ Guidelines for your responses:
 5. **Actionable**: Provide specific numbers, amounts, and eligibility criteria
 6. **Simple Language**: Explain complex financial terms in simple Hindi/English
 7. **Cite Sources**: Reference specific sections, acts, or documents from the context
-8. **Honesty**: If the answer is NOT in the provided context, clearly state "I don't have specific information about this in my knowledge base"
+8. **Personalized**: Use the user's profile information to provide tailored recommendations
+9. **Honesty**: If the answer is NOT in the provided context, clearly state "I don't have specific information about this in my knowledge base"
 
 Response Format Example:
 ## [Topic Name]
@@ -587,7 +662,7 @@ If you have questions about current gold investment options in India or tax impl
             "sources": ["gold_data.csv"]
         }
     
-    def get_response(self, query: str) -> Dict:
+    def get_response(self, query: str, profile: Optional[Dict] = None) -> Dict:
         """Get AI response for a user query"""
         if not self._initialized:
             raise RuntimeError("Bot not initialized. Call initialize() first.")
@@ -597,6 +672,9 @@ If you have questions about current gold investment options in India or tax impl
         if gold_response:
             return gold_response
         
+        # Format user profile for context
+        user_profile_text = format_user_profile(profile) if profile else ""
+        
         # Check document count
         try:
             doc_count = self.vectorstore._collection.count()
@@ -605,9 +683,8 @@ If you have questions about current gold investment options in India or tax impl
         
         # If no documents indexed, use direct LLM response
         if self.rag_chain is None or doc_count == 0:
-            response = self.llm.invoke(
-                SYSTEM_PROMPT.replace("{context}", "No specific documents available.").replace("{question}", query)
-            )
+            prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{context}", "No specific documents available.").replace("{question}", query)
+            response = self.llm.invoke(prompt)
             return {
                 "response": self._extract_text(response.content),
                 "sources": ["General Knowledge - No documents indexed yet"]
@@ -616,8 +693,13 @@ If you have questions about current gold investment options in India or tax impl
         # Get source documents for citation
         source_docs = self._retriever.invoke(query)
         
-        # Use RAG chain
-        result = self.rag_chain.invoke(query)
+        # Create a custom prompt with profile
+        context = "\n\n".join([doc.page_content for doc in source_docs])
+        prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{context}", context).replace("{question}", query)
+        
+        # Use LLM directly with the customized prompt
+        response = self.llm.invoke(prompt)
+        result = self._extract_text(response.content)
         
         # Extract sources
         sources = []

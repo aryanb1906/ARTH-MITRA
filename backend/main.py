@@ -9,8 +9,23 @@ from contextlib import asynccontextmanager
 from bot import initialize_bot, get_bot
 
 # Pydantic models for request/response
+class UserProfile(BaseModel):
+    age: int
+    income: str
+    employmentStatus: str
+    taxRegime: str
+    homeownerStatus: str
+    children: Optional[str] = None
+    childrenAges: Optional[str] = None
+    parentsAge: Optional[str] = None
+    investmentCapacity: Optional[str] = None
+    riskAppetite: Optional[str] = None
+    financialGoals: Optional[List[str]] = None
+    existingInvestments: Optional[List[str]] = None
+
 class ChatRequest(BaseModel):
     message: str
+    profile: Optional[UserProfile] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -82,7 +97,10 @@ def chat(request: ChatRequest):
             bot.initialize(auto_index=False)
             print("✅ Bot initialized successfully")
         
-        result = bot.get_response(request.message)
+        # Convert profile to dict if provided
+        profile_dict = request.profile.dict() if request.profile else None
+        
+        result = bot.get_response(request.message, profile=profile_dict)
         return ChatResponse(
             response=result["response"],
             sources=result["sources"]
