@@ -28,7 +28,7 @@
 - 📊 **Document Query Analytics**: Visual bar chart showing document query history and usage patterns
 - 🎨 **Beautiful Markdown Rendering**: AI responses display with structured formatting, tables, and styling
 - 🤖 **Dual AI Support**: Using `gemini-2.5-flash` or OpenRouter's `gpt-4o-mini` for intelligent responses
-- 📚 **RAG Pipeline Active**: 12 documents indexed (9 PDFs + 2 TXT + 1 CSV) with 1822+ knowledge chunks
+- 📚 **RAG Pipeline Active**: 21 documents indexed (13 PDFs + 2 TXT + 5 CSVs + 1 DOCX) with 1822+ knowledge chunks
 - 🚀 **Frontend on Port 3100**: Modern Next.js interface with real-time chat
 - ⚡ **Backend on Port 8000**: FastAPI server with lazy initialization for faster startup
 - 💡 **Smart API Selection**: Automatically uses Gemini if available, falls back to OpenRouter
