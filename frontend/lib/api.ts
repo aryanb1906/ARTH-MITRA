@@ -15,6 +15,21 @@ export interface ChatResponse {
   sources: string[];
 }
 
+export interface UserProfile {
+  age: number;
+  income: string;
+  employmentStatus: string;
+  taxRegime: string;
+  homeownerStatus: string;
+  children?: string;
+  childrenAges?: string;
+  parentsAge?: string;
+  investmentCapacity?: string;
+  riskAppetite?: string;
+  financialGoals?: string[];
+  existingInvestments?: string[];
+}
+
 export interface UploadResponse {
   status: string;
   message: string;
@@ -27,9 +42,12 @@ export interface StatusResponse {
 }
 
 // API Functions
-export async function sendMessage(message: string): Promise<ChatResponse> {
-  const { data } = await api.post<ChatResponse>('/api/chat', { message });
-  
+export async function sendMessage(message: string, profile?: UserProfile): Promise<ChatResponse> {
+  const { data } = await api.post<ChatResponse>('/api/chat', {
+    message,
+    profile
+  });
+
   // Handle response format (may have nested structure from Gemini)
   if (Array.isArray(data.response)) {
     // Extract text from Gemini's response format
@@ -39,20 +57,20 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
       sources: data.sources,
     };
   }
-  
+
   return data;
 }
 
 export async function uploadDocument(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
-  
+
   const { data } = await api.post<UploadResponse>('/api/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
-  
+
   return data;
 }
 

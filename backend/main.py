@@ -9,8 +9,23 @@ from contextlib import asynccontextmanager
 from bot import initialize_bot, get_bot
 
 # Pydantic models for request/response
+class UserProfile(BaseModel):
+    age: int
+    income: str
+    employmentStatus: str
+    taxRegime: str
+    homeownerStatus: str
+    children: Optional[str] = None
+    childrenAges: Optional[str] = None
+    parentsAge: Optional[str] = None
+    investmentCapacity: Optional[str] = None
+    riskAppetite: Optional[str] = None
+    financialGoals: Optional[List[str]] = None
+    existingInvestments: Optional[List[str]] = None
+
 class ChatRequest(BaseModel):
     message: str
+    profile: Optional[UserProfile] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -28,13 +43,9 @@ class StatusResponse(BaseModel):
 # Startup/shutdown lifecycle
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize bot
-    try:
-        initialize_bot()
-        print("Arth-Mitra bot initialized")
-    except Exception as e:
-        print(f"Bot initialization failed: {e}")
-        print("  Set OPENROUTER_API_KEY in .env file")
+    # Startup: Bot will initialize on first request (lazy loading)
+    print("⚡ Arth-Mitra API starting up...")
+    print("📝 Bot will initialize on first chat request")
     yield
     # Shutdown: cleanup if needed
     print("Shutting down...")
@@ -48,7 +59,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3100"],
+    allow_origins=[
+        "http://localhost:3100",
+        "http://127.0.0.1:3100",
+        "http://0.0.0.0:3100",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -75,12 +92,15 @@ def chat(request: ChatRequest):
     try:
         bot = get_bot()
         if not bot._initialized:
-            raise HTTPException(
-                status_code=503,
-                detail="Bot not initialized. Check OPENROUTER_API_KEY."
-            )
+            # Initialize bot on first request
+            print("🔄 Initializing bot for first time...")
+            bot.initialize(auto_index=False)
+            print("✅ Bot initialized successfully")
         
-        result = bot.get_response(request.message)
+        # Convert profile to dict if provided
+        profile_dict = request.profile.dict() if request.profile else None
+        
+        result = bot.get_response(request.message, profile=profile_dict)
         return ChatResponse(
             response=result["response"],
             sources=result["sources"]
@@ -97,10 +117,8 @@ async def upload_document(file: UploadFile = File(...)):
     try:
         bot = get_bot()
         if not bot._initialized:
-            raise HTTPException(
-                status_code=503,
-                detail="Bot not initialized. Check OPENROUTER_API_KEY."
-            )
+            # Initialize bot on first request
+            bot.initialize(auto_index=False)
         
         # Validate file type
         allowed_extensions = [".pdf", ".csv", ".txt", ".md"]

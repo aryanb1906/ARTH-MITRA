@@ -5,11 +5,28 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText } from 'lucide-react'
+import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react'
 import { sendMessage as sendChatMessage, uploadDocument } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
 import { UserMenu } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Message {
   id: string
@@ -51,13 +68,32 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [bookmarks, setBookmarks] = useState<string[]>([])
-  const [profile] = useState({
+  const [profile, setProfile] = useState({
+    // Compulsory fields
     age: 32,
     income: '₹15 LPA',
-    category: 'Salaried Professional'
+    employmentStatus: 'Salaried - Private',
+    taxRegime: 'Old Regime',
+    homeownerStatus: 'Rented',
+    // Optional fields
+    children: '',
+    childrenAges: '',
+    parentsAge: '',
+    investmentCapacity: '',
+    riskAppetite: '',
+    financialGoals: [] as string[],
+    existingInvestments: [] as string[]
   })
   const [showNewChat, setShowNewChat] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
+
+  // Sidebar collapse states
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true)
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true)
+
+  // Profile editing
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [editedProfile, setEditedProfile] = useState(profile)
 
   const recentQueries: RecentQuery[] = [
     { id: '1', title: 'Tax saving with ₹10 lakh income', timestamp: '13/02/2026', category: 'tax' },
@@ -90,8 +126,8 @@ export default function ChatPage() {
     setShowSuggestions(false)
 
     try {
-      // Call real API
-      const response = await sendChatMessage(userInput)
+      // Call real API with profile data
+      const response = await sendChatMessage(userInput, profile)
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -132,6 +168,23 @@ export default function ChatPage() {
       document.querySelector('input')?.dispatchEvent(event)
     }, 0)
   }
+
+  const handleSaveProfile = () => {
+    setProfile(editedProfile)
+    setIsEditingProfile(false)
+    // You could also save to localStorage here
+    localStorage.setItem('userProfile', JSON.stringify(editedProfile))
+  }
+
+  useEffect(() => {
+    // Load profile from localStorage on mount
+    const savedProfile = localStorage.getItem('userProfile')
+    if (savedProfile) {
+      const parsed = JSON.parse(savedProfile)
+      setProfile(parsed)
+      setEditedProfile(parsed)
+    }
+  }, [])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -176,81 +229,281 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      {/* Toggle Left Sidebar Button */}
+      <button
+        onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+        className="fixed left-0 top-1/2 -translate-y-1/2 z-20 bg-white border border-border/40 rounded-r-lg p-2 shadow-lg hover:bg-slate-50 transition-all"
+        style={{ marginLeft: isLeftSidebarOpen ? '18rem' : '0' }}
+      >
+        {isLeftSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      </button>
+
       {/* Left Sidebar - Profile & History */}
-      <div className="w-72 border-r border-border bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden hidden lg:flex shadow-sm">
-        <div className="p-4 border-b border-border/40">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity mb-4">
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium text-foreground">Back Home</span>
-          </Link>
+      {isLeftSidebarOpen && (
+        <div className="w-72 border-r border-border bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm transition-all duration-300">
+          <div className="p-4 border-b border-border/40">
+            <Link href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity mb-4">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm font-medium text-foreground">Back Home</span>
+            </Link>
 
-          <Button className="w-full mb-4 gap-2">
-            <Plus className="w-4 h-4" />
-            New Chat
-          </Button>
+            <Button className="w-full mb-4 gap-2">
+              <Plus className="w-4 h-4" />
+              New Chat
+            </Button>
 
-          <Card className="p-4 bg-white border border-border/40">
-            <div className="flex items-center gap-2 mb-3">
-              <User className="w-4 h-4 text-primary" />
-              <span className="text-xs font-semibold text-foreground">Your Profile</span>
-            </div>
-            <div className="space-y-2 text-xs text-muted-foreground">
-              <p><span className="font-medium text-foreground">Age:</span> {profile.age}</p>
-              <p><span className="font-medium text-foreground">Income:</span> {profile.income}</p>
-              <p><span className="font-medium text-foreground">Category:</span> {profile.category}</p>
-            </div>
-          </Card>
-        </div>
+            <Card className="p-4 bg-white border border-border/40">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-semibold text-foreground">Your Profile</span>
+                </div>
+                <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 hover:bg-primary/10"
+                      onClick={() => setEditedProfile(profile)}
+                      title="Edit Profile"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Edit Profile</DialogTitle>
+                      <DialogDescription>
+                        Update your profile for personalized financial advice. <span className="text-red-500">*</span> = Required
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-6 py-4">
+                      {/* COMPULSORY FIELDS */}
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <span className="text-red-500">*</span> Basic Information
+                        </h3>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Recent Queries</h3>
-            <div className="space-y-2">
-              {recentQueries.map((query) => (
-                <button
-                  key={query.id}
-                  className="w-full text-left p-3 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 hover:text-foreground transition-colors border border-transparent hover:border-border/40 group"
-                >
-                  <div className="flex items-start gap-2">
-                    <Clock className="w-3 h-3 flex-shrink-0 mt-0.5 group-hover:text-primary" />
-                    <div className="flex-1">
-                      <p className="line-clamp-2">{query.title}</p>
-                      <p className="text-xs opacity-50 mt-1">{query.timestamp}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="age"><span className="text-red-500">*</span> Age</Label>
+                            <Input
+                              id="age"
+                              type="number"
+                              required
+                              value={editedProfile.age}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, age: parseInt(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="income"><span className="text-red-500">*</span> Annual Income</Label>
+                            <Input
+                              id="income"
+                              required
+                              value={editedProfile.income}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, income: e.target.value })}
+                              placeholder="e.g., ₹15 LPA"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="employmentStatus"><span className="text-red-500">*</span> Employment Status</Label>
+                          <Select
+                            value={editedProfile.employmentStatus}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, employmentStatus: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Salaried - Government">Salaried - Government</SelectItem>
+                              <SelectItem value="Salaried - Private">Salaried - Private</SelectItem>
+                              <SelectItem value="Self-Employed">Self-Employed</SelectItem>
+                              <SelectItem value="Business Owner">Business Owner</SelectItem>
+                              <SelectItem value="Retired">Retired</SelectItem>
+                              <SelectItem value="Unemployed">Unemployed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="taxRegime"><span className="text-red-500">*</span> Tax Regime</Label>
+                          <Select
+                            value={editedProfile.taxRegime}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, taxRegime: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Old Regime">Old Regime (with deductions)</SelectItem>
+                              <SelectItem value="New Regime">New Regime (lower rates)</SelectItem>
+                              <SelectItem value="Not Sure">Not Sure / Need Help</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="homeownerStatus"><span className="text-red-500">*</span> Housing Status</Label>
+                          <Select
+                            value={editedProfile.homeownerStatus}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, homeownerStatus: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Own - With Loan">Own House (with home loan)</SelectItem>
+                              <SelectItem value="Own - No Loan">Own House (fully paid)</SelectItem>
+                              <SelectItem value="Rented">Rented Accommodation</SelectItem>
+                              <SelectItem value="Living with Family">Living with Family</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* OPTIONAL FIELDS */}
+                      <div className="space-y-4 pt-4 border-t">
+                        <h3 className="text-sm font-semibold text-foreground">Optional Information (for better recommendations)</h3>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="children">Number of Children</Label>
+                            <Input
+                              id="children"
+                              type="number"
+                              value={editedProfile.children}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, children: e.target.value })}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="childrenAges">Children Ages</Label>
+                            <Input
+                              id="childrenAges"
+                              value={editedProfile.childrenAges}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, childrenAges: e.target.value })}
+                              placeholder="e.g., 5, 8"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="parentsAge">Parents Age</Label>
+                          <Input
+                            id="parentsAge"
+                            value={editedProfile.parentsAge}
+                            onChange={(e) => setEditedProfile({ ...editedProfile, parentsAge: e.target.value })}
+                            placeholder="e.g., Father 65, Mother 60"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="investmentCapacity">Annual Investment Capacity</Label>
+                          <Select
+                            value={editedProfile.investmentCapacity}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, investmentCapacity: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="₹0-50k">₹0 - ₹50,000</SelectItem>
+                              <SelectItem value="₹50k-1L">₹50,000 - ₹1 Lakh</SelectItem>
+                              <SelectItem value="₹1L-2.5L">₹1 Lakh - ₹2.5 Lakhs</SelectItem>
+                              <SelectItem value="₹2.5L-5L">₹2.5 Lakhs - ₹5 Lakhs</SelectItem>
+                              <SelectItem value="₹5L+">₹5 Lakhs+</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="riskAppetite">Risk Appetite</Label>
+                          <Select
+                            value={editedProfile.riskAppetite}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, riskAppetite: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select risk level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Conservative">Conservative (Fixed returns only)</SelectItem>
+                              <SelectItem value="Moderate">Moderate (Balanced approach)</SelectItem>
+                              <SelectItem value="Aggressive">Aggressive (Market-linked returns)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                    <DialogFooter>
+                      <Button onClick={() => setIsEditingProfile(false)} variant="outline">Cancel</Button>
+                      <Button onClick={handleSaveProfile}>Save Profile</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p><span className="font-medium text-foreground">Age:</span> {profile.age} {profile.age >= 60 && '👴'}</p>
+                <p><span className="font-medium text-foreground">Income:</span> {profile.income}</p>
+                <p><span className="font-medium text-foreground">Status:</span> {profile.employmentStatus}</p>
+                <p><span className="font-medium text-foreground">Tax:</span> {profile.taxRegime}</p>
+                <p><span className="font-medium text-foreground">Home:</span> {profile.homeownerStatus}</p>
+                {profile.children && <p><span className="font-medium text-foreground">Children:</span> {profile.children}</p>}
+              </div>
+            </Card>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div>
+              <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Recent Queries</h3>
+              <div className="space-y-2">
+                {recentQueries.map((query) => (
+                  <button
+                    key={query.id}
+                    className="w-full text-left p-3 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 hover:text-foreground transition-colors border border-transparent hover:border-border/40 group"
+                  >
+                    <div className="flex items-start gap-2">
+                      <Clock className="w-3 h-3 flex-shrink-0 mt-0.5 group-hover:text-primary" />
+                      <div className="flex-1">
+                        <p className="line-clamp-2">{query.title}</p>
+                        <p className="text-xs opacity-50 mt-1">{query.timestamp}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Categories</h3>
+              <div className="space-y-2">
+                {[
+                  { label: 'Income Tax', icon: '📊' },
+                  { label: 'Investments', icon: '💰' },
+                  { label: 'Pensions', icon: '👴' },
+                  { label: 'Govt Schemes', icon: '🏛️' }
+                ].map((cat, i) => (
+                  <button key={i} className="w-full text-left p-2 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 transition-colors">
+                    <span className="mr-2">{cat.icon}</span> {cat.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div>
-            <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Categories</h3>
-            <div className="space-y-2">
-              {[
-                { label: 'Income Tax', icon: '📊' },
-                { label: 'Investments', icon: '💰' },
-                { label: 'Pensions', icon: '👴' },
-                { label: 'Govt Schemes', icon: '🏛️' }
-              ].map((cat, i) => (
-                <button key={i} className="w-full text-left p-2 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 transition-colors">
-                  <span className="mr-2">{cat.icon}</span> {cat.label}
-                </button>
-              ))}
-            </div>
+          <div className="p-4 border-t border-border/40 space-y-2">
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+              <AlertCircle className="w-4 h-4" />
+              Help & Support
+            </Button>
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+              <MoreVertical className="w-4 h-4" />
+              Settings
+            </Button>
           </div>
         </div>
-
-        <div className="p-4 border-t border-border/40 space-y-2">
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-            <AlertCircle className="w-4 h-4" />
-            Help & Support
-          </Button>
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-            <MoreVertical className="w-4 h-4" />
-            Settings
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -345,10 +598,11 @@ export default function ChatPage() {
                     <p className={`text-xs mt-2 ${message.type === 'user'
                       ? 'text-primary-foreground/70'
                       : 'text-muted-foreground'
-                      }`}>
+                      }`} suppressHydrationWarning>
                       {message.timestamp.toLocaleTimeString([], {
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
+                        hour12: false
                       })}
                     </p>
                   </div>
@@ -455,37 +709,83 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Right Sidebar - Bookmarks (Hidden on small screens) */}
-      <div className="w-72 border-l border-border/40 bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden hidden xl:flex shadow-sm">
-        <div className="p-4 border-b border-border/40">
-          <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-primary" />
-            Saved Responses
-          </h2>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          {bookmarks.length === 0 ? (
-            <div className="text-center py-8">
-              <Bookmark className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">
-                Bookmark AI responses to save them here for quick reference
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {messages
-                .filter(m => bookmarks.includes(m.id))
-                .map(message => (
-                  <Card key={message.id} className="p-3 bg-white border border-border/40 hover:shadow-md transition-shadow cursor-pointer">
-                    <p className="line-clamp-4 text-xs text-muted-foreground leading-relaxed">
-                      {message.content}
-                    </p>
-                  </Card>
+      {/* Toggle Right Sidebar Button */}
+      <button
+        onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-20 bg-white border border-border/40 rounded-l-lg p-2 shadow-lg hover:bg-slate-50 transition-all"
+        style={{ marginRight: isRightSidebarOpen ? '18rem' : '0' }}
+      >
+        {isRightSidebarOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+      </button>
+
+      {/* Right Sidebar - Bookmarks & Analytics */}
+      {isRightSidebarOpen && (
+        <div className="w-72 border-l border-border/40 bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm transition-all duration-300">
+          <div className="p-4 border-b border-border/40">
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Bookmark className="w-4 h-4 text-primary" />
+              Saved Responses
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Document Analytics Chart */}
+            <Card className="p-4 bg-white border border-border/40">
+              <h3 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
+                <BarChart2 className="w-3 h-3 text-primary" />
+                Document Query History
+              </h3>
+              <div className="space-y-2">
+                {/* Simple bar chart representation */}
+                {[
+                  { source: 'Tax Guide', count: 15, color: 'bg-blue-500' },
+                  { source: 'ITR Forms', count: 12, color: 'bg-green-500' },
+                  { source: 'Schemes', count: 8, color: 'bg-purple-500' },
+                  { source: 'Gold Data', count: 5, color: 'bg-yellow-500' },
+                ].map((item, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground truncate">{item.source}</span>
+                      <span className="font-medium text-foreground">{item.count}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div
+                        className={`${item.color} h-2 rounded-full transition-all duration-500`}
+                        style={{ width: `${(item.count / 15) * 100}%` }}
+                      />
+                    </div>
+                  </div>
                 ))}
-            </div>
-          )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Queries from indexed documents
+              </p>
+            </Card>
+
+            {/* Saved Bookmarks */}
+            {bookmarks.length === 0 ? (
+              <div className="text-center py-8">
+                <Bookmark className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  Bookmark AI responses to save them here for quick reference
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold text-foreground">Bookmarked Responses</h3>
+                {messages
+                  .filter(m => bookmarks.includes(m.id))
+                  .map(message => (
+                    <Card key={message.id} className="p-3 bg-white border border-border/40 hover:shadow-md transition-shadow cursor-pointer">
+                      <p className="line-clamp-4 text-xs text-muted-foreground leading-relaxed">
+                        {message.content}
+                      </p>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
