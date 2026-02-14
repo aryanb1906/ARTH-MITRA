@@ -1080,14 +1080,14 @@ in the Software without restriction...
 
 ## 👨‍💻 Authors & Contributors
 
-### 🌟 Core Development Team
+### 🌟 Team Members & Contributors
 
-| Profile | Name | GitHub | Role |
-|---------|------|--------|------|
-| <img src="https://avatars.githubusercontent.com/u/aryanb1906" width="50" /> | **Aryan** | [@aryanb1906](https://github.com/aryanb1906) | Project Lead & Full Stack |
-| <img src="https://avatars.githubusercontent.com/u/bigbrainbarik" width="50" /> | **Aditya** | [@bigbrainbarik](https://github.com/bigbrainbarik) | Backend & RAG Analysis |
-| <img src="https://avatars.githubusercontent.com/u/nmncodes" width="50" /> | **Naman** | [@nmncodes](https://github.com/nmncodes) | Document Processing |
-| <img src="https://avatars.githubusercontent.com/u/patrapoushali" width="50" /> | **Poushali** | [@patrapoushali](https://github.com/patrapoushali) | Testing & Documentation |
+| S.No | Profile | Name | GitHub | Role |
+|------|---------|------|--------|------|
+| 1 | ![Aryan](https://github.com/aryanb1906.png?size=50) | **Aryan** | [@aryanb1906](https://github.com/aryanb1906) | Project Lead & Full Stack |
+| 2 | ![Aditya](https://github.com/bigbrainbarik.png?size=50) | **Aditya** | [@bigbrainbarik](https://github.com/bigbrainbarik) | Backend & RAG Analysis |
+| 3 | ![Naman](https://github.com/nmncodes.png?size=50) | **Naman** | [@nmncodes](https://github.com/nmncodes) | Document Processing |
+| 4 | ![Poushali](https://github.com/patrapoushali.png?size=50) | **Poushali** | [@patrapoushali](https://github.com/patrapoushali) | Testing & Documentation |
 
 ### 🚀 Community Contributors
 
