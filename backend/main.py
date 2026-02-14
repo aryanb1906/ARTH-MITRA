@@ -94,7 +94,7 @@ def chat(request: ChatRequest):
         if not bot._initialized:
             # Initialize bot on first request
             print("🔄 Initializing bot for first time...")
-            bot.initialize(auto_index=False)
+            bot.initialize(auto_index=True)
             print("✅ Bot initialized successfully")
         
         # Convert profile to dict if provided
@@ -118,7 +118,7 @@ async def upload_document(file: UploadFile = File(...)):
         bot = get_bot()
         if not bot._initialized:
             # Initialize bot on first request
-            bot.initialize(auto_index=False)
+            bot.initialize(auto_index=True)
         
         # Validate file type
         allowed_extensions = [".pdf", ".csv", ".txt", ".md"]
