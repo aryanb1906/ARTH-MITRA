@@ -21,14 +21,17 @@
 
 ## 🎉 Latest Updates
 
-**✅ System Ready with Google Gemini AI Integration!**
+**✨ NEW: Enhanced UI/UX Features Added!**
 
-- 🤖 **Gemini API Configured**: Using `gemini-1.5-flash` for intelligent, context-aware responses
+- 👤 **Profile Editing**: Edit your profile (age, income, category) directly from the chat interface with localStorage persistence
+- 📱 **Collapsible Sidebars**: Toggle left (profile & history) and right (saved messages) sidebars for maximum chat space
+- 📊 **Document Query Analytics**: Visual bar chart showing document query history and usage patterns
+- 🎨 **Beautiful Markdown Rendering**: AI responses display with structured formatting, tables, and styling
+- 🤖 **Dual AI Support**: Using `gemini-2.5-flash` or OpenRouter's `gpt-4o-mini` for intelligent responses
 - 📚 **RAG Pipeline Active**: 12 documents indexed (9 PDFs + 2 TXT + 1 CSV) with 1822+ knowledge chunks
-- 🎨 **Beautiful Markdown Rendering**: AI responses now display with structured formatting, tables, and styling
 - 🚀 **Frontend on Port 3100**: Modern Next.js interface with real-time chat
-- ⚡ **Backend on Port 8000**: FastAPI server with automatic document indexing
-- 💡 **Smart Fallback**: OpenRouter API as backup if Gemini is unavailable
+- ⚡ **Backend on Port 8000**: FastAPI server with lazy initialization for faster startup
+- 💡 **Smart API Selection**: Automatically uses Gemini if available, falls back to OpenRouter
 
 ---
 
@@ -357,6 +360,15 @@ Calculate tax liability under both old and new tax regimes.
 
 ### 📚 **Knowledge Base**
 Comprehensive library of financial terms, concepts, and best practices.
+
+### 👤 **Profile Management**
+Edit your profile (age, income, employment category) directly from the chat interface with localStorage persistence for personalized recommendations.
+
+### 📱 **Collapsible UI**
+Toggle sidebar panels (profile history, saved messages) to maximize chat space and focus on conversations.
+
+### 📊 **Analytics Dashboard**
+Visual document query history with bar charts showing which documents are most frequently referenced for insights.
 
 ---
 
@@ -749,7 +761,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 uvicorn main:app --reload --port 8000
 
 # Backend API will be available at http://localhost:8000
-# You'll see: "🤖 Using Google Gemini AI (gemini-1.5-flash)"
+# You'll see: "🤖 Using Google Gemini AI (gemini-2.5-flash)" or "🤖 Using OpenRouter AI (gpt-4o-mini)"
 ```
 
 **What happens on startup:**
