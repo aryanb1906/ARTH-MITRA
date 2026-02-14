@@ -1082,12 +1082,12 @@ in the Software without restriction...
 
 ### 🌟 Team Members & Contributors
 
-| S.No | Profile | Name | GitHub | Role |
-|------|---------|------|--------|------|
-| 1 | ![Aryan](https://github.com/aryanb1906.png?size=50) | **Aryan** | [@aryanb1906](https://github.com/aryanb1906) | Project Lead & Full Stack |
-| 2 | ![Aditya](https://github.com/bigbrainbarik.png?size=50) | **Aditya** | [@bigbrainbarik](https://github.com/bigbrainbarik) | Backend & RAG Analysis |
-| 3 | ![Naman](https://github.com/nmncodes.png?size=50) | **Naman** | [@nmncodes](https://github.com/nmncodes) | Document Processing |
-| 4 | ![Poushali](https://github.com/patrapoushali.png?size=50) | **Poushali** | [@patrapoushali](https://github.com/patrapoushali) | Testing & Documentation |
+| S.No | Name | GitHub | Role |
+|------|------|--------|------|
+| 1 | **Aryan** | [@aryanb1906](https://github.com/aryanb1906) | Contributor |
+| 2 | **Aditya** | [@bigbrainbarik](https://github.com/bigbrainbarik) | Contributor |
+| 3 | **Naman** | [@nmncodes](https://github.com/nmncodes) | Contributor |
+| 4 | **Poushali** | [@patrapoushali](https://github.com/patrapoushali) | Contributor |
 
 ### 🚀 Community Contributors
 
