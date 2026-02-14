@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText } from 'lucide-react'
 import { sendMessage as sendChatMessage, uploadDocument } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
+import { UserMenu } from '@/components/user-menu'
+import { useAuth } from '@/components/auth-provider'
 
 interface Message {
   id: string
@@ -278,6 +280,7 @@ export default function ChatPage() {
             <Button variant="ghost" size="icon" className="hover:bg-primary/10">
               <RefreshCw className="w-4 h-4" />
             </Button>
+            <UserMenu />
           </div>
         </div>
 

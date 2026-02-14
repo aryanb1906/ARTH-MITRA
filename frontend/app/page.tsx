@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cpu, Github, Mail, Phone, CheckCircle2, TrendingUp, BarChart3, Lightbulb, Award } from 'lucide-react'
 import { useEffect, useState } from "react"
+import { AuthButtons, MobileAuthButtons } from '@/components/user-menu'
 
 export default function Page() {
   {/* backend test */}
@@ -35,14 +36,10 @@ export default function Page() {
             <a href="#how-it-works" className="text-sm text-foreground hover:text-primary transition-colors">How It Works</a>
             <a href="#features" className="text-sm text-foreground hover:text-primary transition-colors">Features</a>
             <a href="#testimonials" className="text-sm text-foreground hover:text-primary transition-colors">Use Cases</a>
-            <Link href="/chat">
-              <Button>Get Started</Button>
-            </Link>
+            <AuthButtons />
           </div>
           <div className="md:hidden">
-            <Link href="/chat">
-              <Button>Try Now</Button>
-            </Link>
+            <MobileAuthButtons />
           </div>
         </div>
       </nav>
