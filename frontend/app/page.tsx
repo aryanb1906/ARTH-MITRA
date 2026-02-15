@@ -1,16 +1,34 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cpu, Github, Mail, Phone, CheckCircle2, TrendingUp, BarChart3, Lightbulb, Award } from 'lucide-react'
 import { useEffect, useState } from "react"
 import { AuthButtons, MobileAuthButtons } from '@/components/user-menu'
+import { useAuth } from '@/components/auth-provider'
 
 export default function Page() {
-  {/* backend test */ }
-
+  const router = useRouter()
+  const { user } = useAuth()
   const [msg, setMsg] = useState("")
+
+  // Redirect authenticated users to profile setup if they don't have a complete profile
+  useEffect(() => {
+    if (user) {
+      const savedProfile = localStorage.getItem('userProfile')
+      const parsed = savedProfile ? JSON.parse(savedProfile) : null
+
+      // If user is logged in but has no complete profile, redirect to setup
+      if (!parsed?.isProfileComplete) {
+        router.push('/profile-setup')
+      } else {
+        // If user has complete profile, go straight to chat
+        router.push('/chat')
+      }
+    }
+  }, [user, router])
 
   useEffect(() => {
     fetch("http://localhost:8000/ping")

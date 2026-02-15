@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -53,6 +54,9 @@ const suggestedQueries = [
 ]
 
 export default function ChatPage() {
+  const router = useRouter()
+  const { user } = useAuth()
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -70,15 +74,15 @@ export default function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const inputFieldRef = useRef<HTMLInputElement>(null)
   const [bookmarks, setBookmarks] = useState<string[]>([])
+
+  // Initialize profile from localStorage
   const [profile, setProfile] = useState({
-    // Compulsory fields
-    age: 32,
-    gender: 'Male',
-    income: '₹15 LPA',
-    employmentStatus: 'Salaried - Private',
-    taxRegime: 'Old Regime',
-    homeownerStatus: 'Rented',
-    // Optional fields
+    age: 0,
+    gender: '',
+    income: '',
+    employmentStatus: '',
+    taxRegime: '',
+    homeownerStatus: '',
     children: '',
     childrenAges: '',
     parentsAge: '',
@@ -87,6 +91,7 @@ export default function ChatPage() {
     financialGoals: [] as string[],
     existingInvestments: [] as string[]
   })
+
   const [showNewChat, setShowNewChat] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
 
@@ -97,6 +102,27 @@ export default function ChatPage() {
   // Profile editing
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [editedProfile, setEditedProfile] = useState(profile)
+
+  // Check profile completion on mount
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('userProfile')
+    if (savedProfile) {
+      const parsed = JSON.parse(savedProfile)
+
+      // If profile is not complete, redirect to setup
+      if (!parsed.isProfileComplete) {
+        router.push('/profile-setup')
+        return
+      }
+
+      // Load the complete profile
+      setProfile(parsed)
+      setEditedProfile(parsed)
+    } else {
+      // No profile exists, redirect to setup
+      router.push('/profile-setup')
+    }
+  }, [router])
 
   const recentQueries: RecentQuery[] = [
     { id: '1', title: 'Tax saving with ₹10 lakh income', timestamp: '13/02/2026', category: 'tax' },
@@ -180,19 +206,9 @@ export default function ChatPage() {
   const handleSaveProfile = () => {
     setProfile(editedProfile)
     setIsEditingProfile(false)
-    // You could also save to localStorage here
+    // Save profile updates to localStorage
     localStorage.setItem('userProfile', JSON.stringify(editedProfile))
   }
-
-  useEffect(() => {
-    // Load profile from localStorage on mount
-    const savedProfile = localStorage.getItem('userProfile')
-    if (savedProfile) {
-      const parsed = JSON.parse(savedProfile)
-      setProfile(parsed)
-      setEditedProfile(parsed)
-    }
-  }, [])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

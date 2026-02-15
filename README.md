@@ -21,13 +21,24 @@
 
 ## 🎉 Latest Updates
 
-**✨ NEW: Enhanced UI/UX Features Added!**
+**✨ NEW: Document Upload & Personal Finance Analysis! 📄✨**
+
+- 📄 **Document Upload Feature**: Upload PDFs, TXT, CSV, Markdown files with automatic indexing
+- 🔍 **Semantic Document Analysis**: Ask questions about your uploaded documents (receipts, statements, documents)
+- ⚡ **Auto-Focus Chat**: Input field auto-focuses after document upload for seamless interaction
+- 📍 **Context-Aware Placeholders**: Chat input shows uploaded filename for easy reference
+- 🎯 **Chunked Indexing**: Visual feedback on document chunks indexed (e.g., "Indexed 2 chunks from Receipt.pdf")
+- 🚀 **OpenRouter API Integration**: Added OpenRouter support alongside Gemini for reliable AI responses
+- 🐛 **Enhanced Error Handling**: Improved backend logging with detailed error messages and traceback
+- ✅ **Fixed FormData Upload**: Proper multipart/form-data handling for reliable file uploads
+
+**Previous Updates:**
 
 - 👤 **Profile Editing**: Update compulsory fields (age, income, employment status, tax regime, homeowner status) plus optional fields (children, parents age, investments, goals, risk appetite) with localStorage persistence
 - 📱 **Collapsible Sidebars**: Toggle left (profile & history) and right (saved messages) sidebars for maximum chat space
 - 📊 **Document Query Analytics**: Visual bar chart showing document query history and usage patterns
 - 🎨 **Beautiful Markdown Rendering**: AI responses display with structured formatting, tables, and styling
-- 🤖 **Dual AI Support**: Using `gemini-2.5-flash` or OpenRouter's `gpt-4o-mini` for intelligent responses
+- 🤖 **Dual AI Support**: Using `openai/gpt-4o-mini` via OpenRouter or Google Gemini for intelligent responses
 - 📚 **RAG Pipeline Active**: 21 documents indexed (13 PDFs + 2 TXT + 5 CSVs + 1 DOCX) with 1822+ knowledge chunks
 - 🚀 **Frontend on Port 3100**: Modern Next.js interface with real-time chat
 - ⚡ **Backend on Port 8000**: FastAPI server with lazy initialization for faster startup
@@ -467,6 +478,16 @@ Toggle sidebar panels (profile history, saved messages) to maximize chat space a
 
 ### 📊 **Analytics Dashboard**
 Visual document query history with bar charts showing which documents are most frequently referenced for insights.
+
+### 📄 **Document Upload & Analysis** ✨ **NEW**
+- Upload personal documents (PDFs, TXT, CSV, Markdown)
+- Automatic indexing and semantic chunking
+- Ask questions about uploaded documents
+- AI-powered document analysis with source citations
+- Real-time document chunking (e.g., "Indexed 2 chunks from Receipt-7000001.pdf")
+- Auto-focus chat input after upload for seamless interaction
+- Upload filename displayed in chat placeholder as context reminder
+- Retrieval-Augmented Generation (RAG) for accurate document-specific answers
 
 ---
 
