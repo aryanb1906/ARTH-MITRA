@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+import sys
 import shutil
 from contextlib import asynccontextmanager
 
@@ -45,7 +46,23 @@ class StatusResponse(BaseModel):
 async def lifespan(app: FastAPI):
     # Startup: Bot will initialize on first request (lazy loading)
     print("⚡ Arth-Mitra API starting up...")
-    print("📝 Bot will initialize on first chat request")
+    print("📝 Bot will initialize on first chat/upload request")
+    print(f"🔐 Checking API keys...")
+    
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    
+    if gemini_key:
+        print("✅ Gemini API key found")
+    elif openrouter_key:
+        print("✅ OpenRouter API key found")
+    else:
+        print("⚠️ WARNING: No API key configured in .env")
+        print("Set GEMINI_API_KEY or OPENROUTER_API_KEY to use the backend")
+    
     yield
     # Shutdown: cleanup if needed
     print("Shutting down...")
@@ -106,8 +123,14 @@ def chat(request: ChatRequest):
             sources=result["sources"]
         )
     except RuntimeError as e:
+        print(f"❌ Runtime Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 

@@ -9,6 +9,22 @@ const api = axios.create({
   },
 });
 
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  response => response,
+  error => {
+    console.error('API Error Details:', {
+      message: error.message,
+      code: error.code,
+      baseURL: error.config?.baseURL,
+      url: error.config?.url,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    return Promise.reject(error);
+  }
+);
+
 // Types
 export interface ChatResponse {
   response: string;
@@ -65,11 +81,27 @@ export async function uploadDocument(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const { data } = await api.post<UploadResponse>('/api/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+  // Create a separate axios instance for FormData without default headers
+  const uploadApi = axios.create({
+    baseURL: API_BASE_URL,
   });
+
+  uploadApi.interceptors.response.use(
+    response => response,
+    error => {
+      console.error('Upload Error Details:', {
+        message: error.message,
+        code: error.code,
+        baseURL: error.config?.baseURL,
+        url: error.config?.url,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      return Promise.reject(error);
+    }
+  );
+
+  const { data } = await uploadApi.post<UploadResponse>('/api/upload', formData);
 
   return data;
 }

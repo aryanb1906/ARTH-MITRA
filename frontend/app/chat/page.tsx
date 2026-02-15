@@ -65,8 +65,10 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [lastUploadedFile, setLastUploadedFile] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const inputFieldRef = useRef<HTMLInputElement>(null)
   const [bookmarks, setBookmarks] = useState<string[]>([])
   const [profile, setProfile] = useState({
     // Compulsory fields
@@ -125,6 +127,11 @@ export default function ChatPage() {
     setInput('')
     setIsLoading(true)
     setShowSuggestions(false)
+
+    // Clear last uploaded file after first question
+    if (lastUploadedFile) {
+      setLastUploadedFile('')
+    }
 
     try {
       // Call real API with profile data
@@ -192,6 +199,7 @@ export default function ChatPage() {
     if (!file) return
 
     setIsUploading(true)
+    setLastUploadedFile(file.name)
 
     // Add system message about upload
     const uploadingMessage: Message = {
@@ -212,6 +220,13 @@ export default function ChatPage() {
           ? { ...msg, content: `✅ ${response.message}\n\nYou can now ask questions about the uploaded document.` }
           : msg
       ))
+
+      // Auto-focus input field after successful upload
+      setTimeout(() => {
+        if (inputFieldRef.current) {
+          inputFieldRef.current.focus()
+        }
+      }, 500)
     } catch (error) {
       console.error('Upload error:', error)
       setMessages(prev => prev.map(msg =>
@@ -219,6 +234,7 @@ export default function ChatPage() {
           ? { ...msg, content: `❌ Failed to upload ${file.name}. Please try again.` }
           : msg
       ))
+      setLastUploadedFile('')
     } finally {
       setIsUploading(false)
       // Reset file input
@@ -298,20 +314,20 @@ export default function ChatPage() {
                           </div>
 
                           <div className="grid gap-2" >
-                          <Label htmlFor="gender"><span className='text-red-500' >*</span> Gender</Label>
-                          <Select
-                            value={editedProfile.gender}
-                            onValueChange={(value) => setEditedProfile({ ...editedProfile, gender: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Male">Male</SelectItem>
-                              <SelectItem value="Female">Female</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            <Label htmlFor="gender"><span className='text-red-500' >*</span> Gender</Label>
+                            <Select
+                              value={editedProfile.gender}
+                              onValueChange={(value) => setEditedProfile({ ...editedProfile, gender: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
 
                           <div className="grid gap-2">
@@ -701,6 +717,7 @@ export default function ChatPage() {
               <Upload className="w-4 h-4" />
             </Button>
             <Input
+              ref={inputFieldRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => {
@@ -709,7 +726,7 @@ export default function ChatPage() {
                   handleSendMessage()
                 }
               }}
-              placeholder="Ask about taxes, schemes, investments..."
+              placeholder={lastUploadedFile ? `Ask about ${lastUploadedFile}...` : "Ask about taxes, schemes, investments..."}
               className="flex-1 text-base px-4 py-2 rounded-full border-border/40 focus:ring-2 focus:ring-primary/20"
               disabled={isLoading || isUploading}
             />
