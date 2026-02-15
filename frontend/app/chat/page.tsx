@@ -71,6 +71,7 @@ export default function ChatPage() {
   const [profile, setProfile] = useState({
     // Compulsory fields
     age: 32,
+    gender: 'Male',
     income: '₹15 LPA',
     employmentStatus: 'Salaried - Private',
     taxRegime: 'Old Regime',
@@ -295,6 +296,24 @@ export default function ChatPage() {
                               onChange={(e) => setEditedProfile({ ...editedProfile, age: parseInt(e.target.value) || 0 })}
                             />
                           </div>
+
+                          <div className="grid gap-2" >
+                          <Label htmlFor="gender"><span className='text-red-500' >*</span> Gender</Label>
+                          <Select
+                            value={editedProfile.gender}
+                            onValueChange={(value) => setEditedProfile({ ...editedProfile, gender: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Male">Male</SelectItem>
+                              <SelectItem value="Female">Female</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          </div>
+
                           <div className="grid gap-2">
                             <Label htmlFor="income"><span className="text-red-500">*</span> Annual Income</Label>
                             <Input
@@ -445,6 +464,7 @@ export default function ChatPage() {
               </div>
               <div className="space-y-2 text-xs text-muted-foreground">
                 <p><span className="font-medium text-foreground">Age:</span> {profile.age} {profile.age >= 60 && '👴'}</p>
+                <p><span className="font-medium text-foreground">Gender:</span> {profile.gender}</p>
                 <p><span className="font-medium text-foreground">Income:</span> {profile.income}</p>
                 <p><span className="font-medium text-foreground">Status:</span> {profile.employmentStatus}</p>
                 <p><span className="font-medium text-foreground">Tax:</span> {profile.taxRegime}</p>
