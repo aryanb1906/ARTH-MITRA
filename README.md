@@ -1154,7 +1154,7 @@ We appreciate all contributors who have helped make Arth-Mitra better!
 
 ## 🗺️ Roadmap
 
-### Phase 1: MVP (Current) ✅
+### Phase 1: MVP ✅
 - ✅ Landing page with product information
 - ✅ Basic chat interface
 - ✅ Responsive design
@@ -1163,13 +1163,19 @@ We appreciate all contributors who have helped make Arth-Mitra better!
 - ✅ Collapsible sidebars for optimal UX
 - ✅ Document query analytics dashboard
 
-### Phase 2: Core Features (In Progress) 🚧
+### Phase 2: Core Features (Current) 🚧
 - ⏳ Backend API optimization
 - ⏳ Enhanced RAG pipeline with multi-source retrieval
 - ⏳ User authentication & registration
 - ⏳ Advanced tax calculator (old vs new regime)
 - ⏳ Scheme eligibility checker with recommendations
-- ⏳ Query history with export functionality
+- ✅ Query history with export functionality
+- ✅ Streaming chat responses with token-by-token display
+- ✅ Chat memory and context persistence
+- ✅ Auto-generated charts from numeric responses
+- ✅ Pinned chart snapshots with chart type toggle
+- ✅ Export charts as PNG
+- ✅ Resizable sidebar panels
 
 ### Phase 3: Advanced Features (Planned) 📅
 - 🔮 Multilingual support (Hindi, Tamil, Telugu, Kannada, Marathi)
