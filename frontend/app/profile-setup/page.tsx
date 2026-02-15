@@ -18,7 +18,7 @@ import {
 import { useAuth } from '@/components/auth-provider'
 
 interface UserProfile {
-    age: number
+    age: number | ''
     gender: string
     income: string
     employmentStatus: string
@@ -35,12 +35,12 @@ interface UserProfile {
 }
 
 const DEFAULT_PROFILE: UserProfile = {
-    age: 32,
-    gender: 'Male',
-    income: '₹15 LPA',
-    employmentStatus: 'Salaried - Private',
-    taxRegime: 'Old Regime',
-    homeownerStatus: 'Rented',
+    age: '',
+    gender: '',
+    income: '',
+    employmentStatus: '',
+    taxRegime: '',
+    homeownerStatus: '',
     children: '',
     childrenAges: '',
     parentsAge: '',
@@ -61,24 +61,21 @@ export default function ProfileSetupPage() {
     useEffect(() => {
         // Check if already has completed profile
         const savedProfile = localStorage.getItem('userProfile')
-        if (savedProfile) {
-            const parsed = JSON.parse(savedProfile)
-            if (parsed.isProfileComplete) {
-                router.push('/chat')
-                return
-            }
+        const parsedProfile = savedProfile ? (JSON.parse(savedProfile) as Partial<UserProfile>) : null
+
+        if (parsedProfile?.isProfileComplete) {
+            router.push('/chat')
+            return
         }
 
         // Load profile if exists
-        if (savedProfile) {
-            const parsed = JSON.parse(savedProfile)
-            setProfile({ ...profile, ...parsed })
-        }
+        const mergedProfile: UserProfile = { ...DEFAULT_PROFILE, ...(parsedProfile || {}) }
+        setProfile(mergedProfile)
 
         // Track completed fields
         const requiredFields = ['age', 'gender', 'income', 'employmentStatus', 'taxRegime', 'homeownerStatus']
         const completed = requiredFields.filter(field => {
-            const value = parsed?.[field] || profile[field as keyof UserProfile]
+            const value = mergedProfile[field as keyof UserProfile]
             return value && value !== ''
         })
         setCompletedFields(completed)

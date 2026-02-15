@@ -33,6 +33,7 @@ export interface ChatResponse {
 
 export interface UserProfile {
   age: number;
+  gender?: string;
   income: string;
   employmentStatus: string;
   taxRegime: string;
@@ -44,6 +45,11 @@ export interface UserProfile {
   riskAppetite?: string;
   financialGoals?: string[];
   existingInvestments?: string[];
+}
+
+export interface ChatHistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 export interface UploadResponse {
@@ -58,10 +64,15 @@ export interface StatusResponse {
 }
 
 // API Functions
-export async function sendMessage(message: string, profile?: UserProfile): Promise<ChatResponse> {
+export async function sendMessage(
+  message: string,
+  profile?: UserProfile,
+  history?: ChatHistoryMessage[]
+): Promise<ChatResponse> {
   const { data } = await api.post<ChatResponse>('/api/chat', {
     message,
-    profile
+    profile,
+    history
   });
 
   // Handle response format (may have nested structure from Gemini)
@@ -75,6 +86,75 @@ export async function sendMessage(message: string, profile?: UserProfile): Promi
   }
 
   return data;
+}
+
+export async function sendMessageStream(
+  message: string,
+  profile: UserProfile | undefined,
+  history: ChatHistoryMessage[],
+  onToken: (token: string) => void,
+  onSources: (sources: string[]) => void
+): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        profile,
+        history,
+      }),
+    });
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Streaming failed with status ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() || '';
+
+      for (const part of parts) {
+        const lines = part.split('\n');
+        let event = 'message';
+        let data = '';
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            event = line.replace('event:', '').trim();
+          } else if (line.startsWith('data:')) {
+            data += line.replace('data:', '').trim();
+          }
+        }
+
+        if (!data) continue;
+
+        if (event === 'token') {
+          onToken(JSON.parse(data));
+        } else if (event === 'sources') {
+          onSources(JSON.parse(data));
+        } else if (event === 'error') {
+          throw new Error(JSON.parse(data));
+        } else if (event === 'done') {
+          return;
+        }
+      }
+    }
+  } catch (error) {
+    const fallback = await sendMessage(message, profile, history);
+    onToken(fallback.response);
+    onSources(fallback.sources || []);
+  }
 }
 
 export async function uploadDocument(file: File): Promise<UploadResponse> {

@@ -31,6 +31,13 @@
 - 🚀 **OpenRouter API Integration**: Added OpenRouter support alongside Gemini for reliable AI responses
 - 🐛 **Enhanced Error Handling**: Improved backend logging with detailed error messages and traceback
 - ✅ **Fixed FormData Upload**: Proper multipart/form-data handling for reliable file uploads
+- 🧠 **Profile Setup Flow**: Login → Profile Setup → Chat with personalized context stored in localStorage
+- 💬 **Streaming Chat**: Token-by-token streaming with fallback to standard responses
+- 🗂️ **Chat Memory**: Previous chat context included in RAG prompts for follow-up questions
+- 📊 **Auto Charts**: Response Insights charts auto-generated from numeric responses
+- 📈 **Pinned Charts**: Save and switch between per-response charts with manual chart type toggle
+- 📤 **Export Charts**: Download charts as PNG from the sidebar
+- ↔️ **Resizable Sidebar**: Drag to resize the right insights panel
 
 **Previous Updates:**
 

@@ -8,7 +8,7 @@ import re
 import glob
 import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, Tuple, List, Iterable
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
@@ -308,6 +308,23 @@ def format_user_profile(profile: Dict) -> str:
     return profile_text
 
 
+def format_chat_history(history: Optional[List[Dict]]) -> str:
+    """Format recent chat history for the prompt."""
+    if not history:
+        return "None"
+
+    lines = []
+    for item in history:
+        role = item.get("role", "user")
+        content = item.get("content", "").strip()
+        if not content:
+            continue
+        label = "User" if role == "user" else "Assistant"
+        lines.append(f"{label}: {content}")
+
+    return "\n".join(lines) if lines else "None"
+
+
 # System prompt for financial guidance
 SYSTEM_PROMPT = """You are Arth-Mitra, an expert AI financial advisor specializing in Indian finance.
 You help users understand:
@@ -317,6 +334,9 @@ You help users understand:
 - Retirement planning and pension schemes
 
 {user_profile}
+
+Chat history (most recent last):
+{chat_history}
 
 Guidelines for your responses:
 1. **Structure**: Use clear sections with headers (##) when explaining complex topics
@@ -669,7 +689,7 @@ If you have questions about current gold investment options in India or tax impl
             "sources": ["gold_data.csv"]
         }
     
-    def get_response(self, query: str, profile: Optional[Dict] = None) -> Dict:
+    def get_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None) -> Dict:
         """Get AI response for a user query"""
         if not self._initialized:
             raise RuntimeError("Bot not initialized. Call initialize() first.")
@@ -684,6 +704,7 @@ If you have questions about current gold investment options in India or tax impl
         
         # Format user profile for context
         user_profile_text = format_user_profile(profile) if profile else ""
+        chat_history_text = format_chat_history(history)
         
         # Check document count
         try:
@@ -693,7 +714,7 @@ If you have questions about current gold investment options in India or tax impl
         
         # If no documents indexed, use direct LLM response
         if self.rag_chain is None or doc_count == 0:
-            prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{context}", "No specific documents available.").replace("{question}", query)
+            prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", "No specific documents available.").replace("{question}", query)
             response = self.llm.invoke(prompt)
             sources = ["General Knowledge - No documents indexed yet"]
             response_text = self._append_sources_section(
@@ -710,7 +731,7 @@ If you have questions about current gold investment options in India or tax impl
         
         # Create a custom prompt with profile
         context = "\n\n".join([doc.page_content for doc in source_docs])
-        prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{context}", context).replace("{question}", query)
+        prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", context).replace("{question}", query)
         
         # Use LLM directly with the customized prompt
         response = self.llm.invoke(prompt)
@@ -732,6 +753,61 @@ If you have questions about current gold investment options in India or tax impl
             "response": self._append_sources_section(result, final_sources),
             "sources": final_sources
         }
+
+    def stream_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None) -> Tuple[Iterable[str], List[str]]:
+        """Stream AI response tokens for a user query."""
+        if not self._initialized:
+            raise RuntimeError("Bot not initialized. Call initialize() first.")
+
+        gold_response = self._handle_gold_price_query(query)
+        if gold_response:
+            def gold_stream():
+                yield gold_response["response"]
+            return gold_stream(), gold_response.get("sources", ["gold_data.csv"])
+
+        user_profile_text = format_user_profile(profile) if profile else ""
+        chat_history_text = format_chat_history(history)
+
+        try:
+            doc_count = self.vectorstore._collection.count()
+        except:
+            doc_count = 0
+
+        if self.rag_chain is None or doc_count == 0:
+            prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", "No specific documents available.").replace("{question}", query)
+            sources = ["General Knowledge - No documents indexed yet"]
+
+            def no_doc_stream():
+                for chunk in self.llm.stream(prompt):
+                    text = self._extract_text(chunk.content)
+                    if text:
+                        yield text
+
+            return no_doc_stream(), sources
+
+        source_docs = self._retriever.invoke(query)
+        context = "\n\n".join([doc.page_content for doc in source_docs])
+        prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", context).replace("{question}", query)
+
+        sources = []
+        for doc in source_docs:
+            source = doc.metadata.get("source", "Unknown")
+            page = doc.metadata.get("page", "")
+            source_str = f"{os.path.basename(source)}"
+            if page:
+                source_str += f" (Page {page + 1})"
+            if source_str not in sources:
+                sources.append(source_str)
+
+        final_sources = sources if sources else ["Knowledge Base"]
+
+        def doc_stream():
+            for chunk in self.llm.stream(prompt):
+                text = self._extract_text(chunk.content)
+                if text:
+                    yield text
+
+        return doc_stream(), final_sources
     
     def get_status(self) -> Dict:
         """Get bot status and statistics"""

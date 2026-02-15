@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -6,12 +7,14 @@ import os
 import sys
 import shutil
 from contextlib import asynccontextmanager
+import json
 
 from bot import initialize_bot, get_bot
 
 # Pydantic models for request/response
 class UserProfile(BaseModel):
-    age: int
+    age: Optional[int] = None
+    gender: Optional[str] = None
     income: str
     employmentStatus: str
     taxRegime: str
@@ -24,9 +27,14 @@ class UserProfile(BaseModel):
     financialGoals: Optional[List[str]] = None
     existingInvestments: Optional[List[str]] = None
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
 class ChatRequest(BaseModel):
     message: str
     profile: Optional[UserProfile] = None
+    history: Optional[List[ChatMessage]] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -76,13 +84,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3100",
-        "http://127.0.0.1:3100",
-        "http://0.0.0.0:3100",
-        "http://localhost:3000",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -116,8 +119,9 @@ def chat(request: ChatRequest):
         
         # Convert profile to dict if provided
         profile_dict = request.profile.dict() if request.profile else None
+        history = [msg.dict() for msg in request.history] if request.history else None
         
-        result = bot.get_response(request.message, profile=profile_dict)
+        result = bot.get_response(request.message, profile=profile_dict, history=history)
         return ChatResponse(
             response=result["response"],
             sources=result["sources"]
@@ -131,6 +135,39 @@ def chat(request: ChatRequest):
         print(f"❌ Error: {str(e)}")
         import traceback
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.post("/api/chat/stream")
+def chat_stream(request: ChatRequest):
+    """Stream chat response tokens via SSE"""
+    try:
+        bot = get_bot()
+        if not bot._initialized:
+            print("🔄 Initializing bot for first time...")
+            bot.initialize(auto_index=True)
+            print("✅ Bot initialized successfully")
+
+        profile_dict = request.profile.dict() if request.profile else None
+        history = [msg.dict() for msg in request.history] if request.history else None
+
+        token_iter, sources = bot.stream_response(request.message, profile=profile_dict, history=history)
+
+        def event_stream():
+            try:
+                for token in token_iter:
+                    if token:
+                        yield f"event: token\ndata: {json.dumps(token)}\n\n"
+                yield f"event: sources\ndata: {json.dumps(sources)}\n\n"
+                yield "event: done\ndata: [DONE]\n\n"
+            except Exception as e:
+                yield f"event: error\ndata: {json.dumps(str(e))}\n\n"
+                yield "event: done\ndata: [DONE]\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 

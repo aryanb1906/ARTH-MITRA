@@ -14,21 +14,22 @@ export default function Page() {
   const { user } = useAuth()
   const [msg, setMsg] = useState("")
 
-  // Redirect authenticated users to profile setup if they don't have a complete profile
-  useEffect(() => {
-    if (user) {
-      const savedProfile = localStorage.getItem('userProfile')
-      const parsed = savedProfile ? JSON.parse(savedProfile) : null
-
-      // If user is logged in but has no complete profile, redirect to setup
-      if (!parsed?.isProfileComplete) {
-        router.push('/profile-setup')
-      } else {
-        // If user has complete profile, go straight to chat
-        router.push('/chat')
-      }
+  const handleGetStarted = () => {
+    if (!user) {
+      router.push('/profile-setup')
+      return
     }
-  }, [user, router])
+
+    const savedProfile = localStorage.getItem('userProfile')
+    const parsed = savedProfile ? JSON.parse(savedProfile) : null
+
+    if (parsed?.isProfileComplete) {
+      router.push('/chat')
+      return
+    }
+
+    router.push('/profile-setup')
+  }
 
   useEffect(() => {
     fetch("http://localhost:8000/ping")
@@ -88,12 +89,10 @@ export default function Page() {
           </p>
 
           <div className="flex flex-col md:flex-row gap-3 justify-center mb-8">
-            <Link href="/chat">
-              <Button className="w-full md:w-auto">
-                Try Arth-Mitra
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+            <Button className="w-full md:w-auto" onClick={handleGetStarted}>
+              Try Arth-Mitra
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
             <Button className="w-full md:w-auto bg-gray-500 border border-border hover:bg-gray-600">
               Watch Demo Video
               {/*Remember to add a demo link*/}
