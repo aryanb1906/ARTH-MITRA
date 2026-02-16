@@ -8,6 +8,8 @@ import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cp
 import { useEffect, useState } from "react"
 import { AuthButtons, MobileAuthButtons } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
+import { Logo } from '@/components/logo'
+import { LiveStats } from '@/components/live-stats'
 
 export default function Page() {
   const router = useRouter()
@@ -16,7 +18,8 @@ export default function Page() {
 
   const handleGetStarted = () => {
     if (!user) {
-      router.push('/profile-setup')
+      // Send unauthenticated users to login to sign in first
+      router.push('/login')
       return
     }
 
@@ -42,15 +45,7 @@ export default function Page() {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border/40">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-sm">AM</span>
-            </div>
-            <div>
-              <span className="font-bold text-lg text-foreground block">Arth-Mitra</span>
-              <span className="text-xs text-muted-foreground">Financial Guide</span>
-            </div>
-          </div>
+          <Logo size="md" showText={true} href="/" />
           <div className="hidden md:flex items-center gap-8">
             <a href="#how-it-works" className="text-sm text-foreground hover:text-primary transition-colors">How It Works</a>
             <a href="#features" className="text-sm text-foreground hover:text-primary transition-colors">Features</a>
@@ -70,25 +65,25 @@ export default function Page() {
       )}
 
       {/* Hero Section */}
-      <section className="relative px-4 md:px-6 py-12 md:py-24 max-w-7xl mx-auto overflow-hidden">
+      <section className="relative px-4 md:px-6 py-2 md:py-4 max-w-7xl mx-auto overflow-hidden">
         <div className="absolute top-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-10 w-72 h-72 bg-accent/5 rounded-full blur-3xl" />
 
         <div className="relative text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-8 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-6 backdrop-blur-sm">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <p className="text-sm text-primary font-semibold">AI-Powered Financial Guidance</p>
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 text-pretty leading-tight">
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-5 text-pretty leading-tight">
             Navigate Indian <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Finance with Ease</span>
           </h1>
 
-          <p className="text-base md:text-lg text-muted-foreground mb-6 max-w-2xl mx-auto text-pretty leading-relaxed">
+          <p className="text-base md:text-lg text-muted-foreground mb-8 max-w-2xl mx-auto text-pretty leading-relaxed">
             Understand complex tax laws, government schemes, and investment options in simple language. Get personalized financial guidance powered by advanced AI and official government data.
           </p>
 
-          <div className="flex flex-col md:flex-row gap-3 justify-center mb-8">
+          <div className="flex flex-col md:flex-row gap-3 justify-center mb-10">
             <Button className="w-full md:w-auto" onClick={handleGetStarted}>
               Try Arth-Mitra
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -99,24 +94,15 @@ export default function Page() {
             </Button>
           </div>
 
-          {/* Stats Row */}
-          <div className="grid md:grid-cols-3 gap-4 md:gap-6 max-w-2xl mx-auto">
-            {[
-              { value: '50K+', label: 'Financial Queries Answered' },
-              { value: '₹10Cr+', label: 'Tax Saved For Users' },
-              { value: '98%', label: 'Accuracy Rate' }
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <div className="text-xl md:text-2xl font-bold text-primary mb-1">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            ))}
+          {/* Stats Row - Live Analytics */}
+          <div className="mt-6">
+            <LiveStats />
           </div>
         </div>
       </section>
 
       {/* How It Works - Detailed */}
-      <section id="how-it-works" className="px-4 md:px-6 py-12 bg-gradient-to-b from-blue-50/50 to-white border-y border-border/40">
+      <section id="how-it-works" className="px-4 md:px-6 py-16 md:py-20 bg-gradient-to-b from-blue-50/50 to-white border-y border-border/40">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 backdrop-blur-sm mb-3">

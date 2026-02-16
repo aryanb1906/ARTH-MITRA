@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByEmail, verifyPassword } from '@/lib/users';
 import { signToken, createAuthCookie } from '@/lib/auth';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,47 +15,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find user
-    const user = await getUserByEmail(email);
-    if (!user) {
+    // Call backend API to login
+    const backendRes = await fetch(`${API_BASE}/api/users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const backendData = await backendRes.json();
+
+    if (!backendRes.ok) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: backendData.message || 'Invalid email or password' },
         { status: 401 }
       );
     }
 
-    // Check if user signed up with OAuth
-    if (user.provider !== 'credentials' || !user.password) {
-      return NextResponse.json(
-        { error: `Please sign in with ${user.provider}` },
-        { status: 401 }
-      );
-    }
-
-    // Verify password
-    const isValid = await verifyPassword(password, user.password);
-    if (!isValid) {
-      return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
-      );
-    }
+    const user = backendData.user;
 
     // Generate JWT
     const token = await signToken({
-      userId: user._id!.toString(),
+      userId: user.id,
       email: user.email,
-      name: user.name,
+      name: user.username || user.email,
       provider: 'credentials',
     });
 
     // Return response with cookie
     const response = NextResponse.json({
       user: {
-        id: user._id!.toString(),
+        id: user.id,
         email: user.email,
-        name: user.name,
-        avatar: user.avatar,
+        name: user.username || user.email,
       },
     });
 

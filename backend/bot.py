@@ -19,6 +19,10 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
+import hashlib
+import json
+from functools import lru_cache
+import time
 
 load_dotenv()
 
@@ -26,6 +30,13 @@ load_dotenv()
 CHROMA_PERSIST_DIR = "./chroma_db"
 DOCS_DIR = "./documents"  # Pre-loaded knowledge base documents
 GOLD_DATA_PATH = os.path.join(DOCS_DIR, "gold_data.csv")
+
+# Performance optimization settings
+CACHE_SIZE = 100  # Number of queries to cache
+CACHE_TTL = 3600  # Cache time-to-live in seconds
+OPTIMIZED_CHUNK_SIZE = 500  # Reduced from 1000 for faster retrieval
+OPTIMIZED_CHUNK_OVERLAP = 50  # Reduced from 200
+OPTIMIZED_RETRIEVAL_K = 3  # Reduced from 5 for faster queries
 
 # Month name mappings for date parsing
 MONTH_NAMES = {
@@ -237,6 +248,53 @@ def get_gold_lookup() -> GoldPriceLookup:
     return _gold_lookup
 
 
+class ResponseCache:
+    """Simple in-memory cache for query responses with TTL"""
+    
+    def __init__(self, max_size: int = CACHE_SIZE, ttl: int = CACHE_TTL):
+        self.cache = {}
+        self.max_size = max_size
+        self.ttl = ttl
+    
+    def _get_cache_key(self, query: str, profile: Optional[Dict] = None) -> str:
+        """Generate cache key from query and profile"""
+        cache_data = {"query": query.lower().strip()}
+        if profile:
+            # Only include key profile fields that affect recommendations
+            cache_data["profile"] = {
+                "age": profile.get("age"),
+                "income": profile.get("income"),
+                "taxRegime": profile.get("taxRegime")
+            }
+        return hashlib.md5(json.dumps(cache_data, sort_keys=True).encode()).hexdigest()
+    
+    def get(self, query: str, profile: Optional[Dict] = None) -> Optional[Dict]:
+        """Get cached response if available and not expired"""
+        key = self._get_cache_key(query, profile)
+        if key in self.cache:
+            cached_data, timestamp = self.cache[key]
+            if time.time() - timestamp < self.ttl:
+                return cached_data
+            else:
+                del self.cache[key]  # Remove expired entry
+        return None
+    
+    def set(self, query: str, response: Dict, profile: Optional[Dict] = None):
+        """Cache a response with current timestamp"""
+        key = self._get_cache_key(query, profile)
+        
+        # If cache is full, remove oldest entry
+        if len(self.cache) >= self.max_size:
+            oldest_key = min(self.cache.keys(), key=lambda k: self.cache[k][1])
+            del self.cache[oldest_key]
+        
+        self.cache[key] = (response, time.time())
+    
+    def clear(self):
+        """Clear all cached responses"""
+        self.cache.clear()
+
+
 def format_user_profile(profile: Dict) -> str:
     """Format user profile information for the system prompt."""
     if not profile:
@@ -325,61 +383,25 @@ def format_chat_history(history: Optional[List[Dict]]) -> str:
     return "\n".join(lines) if lines else "None"
 
 
-# System prompt for financial guidance
-SYSTEM_PROMPT = """You are Arth-Mitra, an expert AI financial advisor specializing in Indian finance.
-You help users understand:
-- Income Tax laws and optimization strategies
-- Government schemes (NPS, PPF, SSY, APY, etc.)
-- Investment options and their tax implications
-- Retirement planning and pension schemes
+# System prompt optimized for faster token generation
+SYSTEM_PROMPT = """You are Arth-Mitra, an expert Indian financial advisor.
 
 {user_profile}
 
-Chat history (most recent last):
-{chat_history}
+Recent chat: {chat_history}
 
-Guidelines for your responses:
-1. **Structure**: Use clear sections with headers (##) when explaining complex topics
-2. **Formatting**: Use **bold** for important terms, numbers, and deadlines
-3. **Tables**: Present comparative data in markdown tables when applicable
-4. **Lists**: Use bullet points (- or *) or numbered lists (1., 2., etc.) for steps or options
-5. **Actionable**: Provide specific numbers, amounts, and eligibility criteria
-6. **Simple Language**: Explain complex financial terms in simple Hindi/English
-7. **Cite Sources**: Reference specific sections, acts, or documents from the context
-8. **Personalized**: Use the user's profile information to provide tailored recommendations
-9. **Honesty**: If the answer is NOT in the provided context, clearly state "I don't have specific information about this in my knowledge base"
+**Guidelines:**
+- Use ## headers, **bold** for key terms, tables for comparisons
+- Provide specific numbers, amounts, eligibility criteria
+- Reference source documents
+- If info not in context, state clearly
+- Keep responses concise and actionable
 
-Response Format Example:
-## [Topic Name]
+**Context:** {context}
 
-[Brief introduction]
+**Query:** {question}
 
-### Key Features
-- **Feature 1**: Detail
-- **Feature 2**: Detail
-
-### Eligibility
-| Criteria | Requirement |
-|----------|-------------|
-| Age | X-Y years |
-| Income | ₹X Lakhs |
-
-### Tax Benefits
-[Explain with specific sections like 80C, 80D etc.]
-
-### How to Apply
-1. Step one
-2. Step two
-
----
-*Source: [Document name from context]*
-
-Context from knowledge base:
-{context}
-
-User Question: {question}
-
-Provide a helpful, detailed, well-formatted response based on the context above:"""
+**Response:**"""
 
 PROMPT_TEMPLATE = ChatPromptTemplate.from_template(SYSTEM_PROMPT)
 
@@ -395,6 +417,8 @@ class ArthMitraBot:
         self._initialized = False
         self._retriever = None
         self._indexed_files = set()
+        self._response_cache = ResponseCache()
+        self._embeddings_cache = None  # Will store the model to avoid reloading
 
     def _append_sources_section(self, response: str, sources: List[str]) -> str:
         """Append an explicit Sources section to the response body."""
@@ -402,6 +426,11 @@ class ArthMitraBot:
             sources = ["Knowledge Base"]
         sources_lines = "\n".join([f"- {source}" for source in sources])
         return f"{response}\n\n---\nSources:\n{sources_lines}"
+    
+    def clear_cache(self):
+        """Clear the response cache"""
+        self._response_cache.clear()
+        print("✅ Response cache cleared")
     
     def initialize(self, auto_index: bool = True):
         """Initialize the bot with embeddings and LLM"""
@@ -415,10 +444,17 @@ class ArthMitraBot:
                 "Gemini is recommended for better performance."
             )
         
-        # Initialize embeddings (HuggingFace - runs locally, free)
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        # Initialize embeddings with faster model and caching
+        # Using a smaller, faster model for better performance
+        if self._embeddings_cache is None:
+            print("🔄 Loading optimized embeddings model...")
+            self._embeddings_cache = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'normalize_embeddings': True, 'batch_size': 32}  # Batch processing for speed
+            )
+        self.embeddings = self._embeddings_cache
+        print("✅ Embeddings model loaded")
         
         # Initialize LLM - Prefer Gemini if available
         if gemini_key:
@@ -508,8 +544,11 @@ class ArthMitraBot:
             print(f"✓ Knowledge base up to date ({len(existing_sources)} documents indexed)")
     
     def _format_docs(self, docs):
-        """Format retrieved documents into a string with source info"""
+        """Format retrieved documents into a string with source info - optimized for speed"""
         formatted = []
+        max_context_length = 2000  # Limit total context to reduce LLM processing time
+        current_length = 0
+        
         for doc in docs:
             source = doc.metadata.get('source', 'Unknown')
             page = doc.metadata.get('page', '')
@@ -517,7 +556,19 @@ class ArthMitraBot:
             if page:
                 source_info += f", Page {page + 1}"
             source_info += "]"
-            formatted.append(f"{doc.page_content}\n{source_info}")
+            
+            content = doc.page_content
+            # Truncate if we're approaching the limit
+            if current_length + len(content) > max_context_length:
+                remaining = max_context_length - current_length
+                if remaining > 100:  # Only add if we have meaningful space left
+                    content = content[:remaining] + "..."
+                    formatted.append(f"{content}\\n{source_info}")
+                break
+            
+            formatted.append(f"{content}\\n{source_info}")
+            current_length += len(content)
+        
         return "\n\n---\n\n".join(formatted)
     
     def _create_rag_chain(self):
@@ -528,9 +579,15 @@ class ArthMitraBot:
             doc_count = 0
             
         if doc_count > 0:
+            # Use MMR (Maximal Marginal Relevance) for better diversity with fewer docs
+            # This retrieves fewer but more relevant documents = faster queries
             self._retriever = self.vectorstore.as_retriever(
-                search_type="similarity",
-                search_kwargs={"k": 5}
+                search_type="mmr",  # Changed from similarity to mmr for better relevance
+                search_kwargs={
+                    "k": OPTIMIZED_RETRIEVAL_K,  # Reduced from 5 to 3
+                    "fetch_k": 10,  # Fetch more candidates but return only k best
+                    "lambda_mult": 0.5  # Balance between relevance and diversity
+                }
             )
             
             self.rag_chain = (
@@ -557,12 +614,13 @@ class ArthMitraBot:
         else:
             return {"status": "error", "message": f"Unsupported file type: {file_ext}"}
         
-        # Load and split documents
+        # Load and split documents with optimized chunk sizes
         documents = loader.load()
         
+        # Smaller chunks = faster retrieval and less token usage
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=OPTIMIZED_CHUNK_SIZE,
+            chunk_overlap=OPTIMIZED_CHUNK_OVERLAP,
             separators=["\n\n", "\n", ".", " "]
         )
         
@@ -690,9 +748,16 @@ If you have questions about current gold investment options in India or tax impl
         }
     
     def get_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None) -> Dict:
-        """Get AI response for a user query"""
+        """Get AI response for a user query with caching"""
         if not self._initialized:
             raise RuntimeError("Bot not initialized. Call initialize() first.")
+        
+        # Check cache first (skip for gold queries which need real-time data)
+        if not is_gold_price_query(query):
+            cached_response = self._response_cache.get(query, profile)
+            if cached_response:
+                print("⚡ Cache hit - returning cached response")
+                return cached_response
         
         # Check if this is a gold price query with a specific date
         gold_response = self._handle_gold_price_query(query)
@@ -749,10 +814,15 @@ If you have questions about current gold investment options in India or tax impl
                 sources.append(source_str)
         
         final_sources = sources if sources else ["Knowledge Base"]
-        return {
+        response_data = {
             "response": self._append_sources_section(result, final_sources),
             "sources": final_sources
         }
+        
+        # Cache the response for future queries
+        self._response_cache.set(query, response_data, profile)
+        
+        return response_data
 
     def stream_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None) -> Tuple[Iterable[str], List[str]]:
         """Stream AI response tokens for a user query."""

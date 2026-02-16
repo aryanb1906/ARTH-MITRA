@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createUser, getUserByEmail } from '@/lib/users';
 import { signToken, createAuthCookie } from '@/lib/auth';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,37 +22,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if user exists
-    const existingUser = await getUserByEmail(email);
-    if (existingUser) {
+    // Call backend API to register
+    const backendRes = await fetch(`${API_BASE}/api/users/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, username: name, password }),
+    });
+
+    const backendData = await backendRes.json();
+
+    if (!backendRes.ok) {
       return NextResponse.json(
-        { error: 'Email already registered' },
+        { error: backendData.message || 'Registration failed' },
         { status: 400 }
       );
     }
 
-    // Create user
-    const user = await createUser({
-      email,
-      password,
-      name,
-      provider: 'credentials',
-    });
+    const user = backendData.user;
 
     // Generate JWT
     const token = await signToken({
-      userId: user._id!.toString(),
+      userId: user.id,
       email: user.email,
-      name: user.name,
+      name: user.username || user.email,
       provider: 'credentials',
     });
 
     // Return response with cookie
     const response = NextResponse.json({
       user: {
-        id: user._id!.toString(),
+        id: user.id,
         email: user.email,
-        name: user.name,
+        name: user.username || user.email,
       },
     });
 

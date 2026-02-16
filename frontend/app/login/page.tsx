@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Github, Mail, Loader2, AlertCircle } from 'lucide-react';
-
+import { login } from '@/lib/api'; import { LogoWithTagline } from '@/components/logo'
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,23 +26,46 @@ function LoginForm() {
     setError('');
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const result = await login(email, password);
 
-      const data = await res.json();
+      if (result.status === 'success' && result.user) {
+        // Store user info in localStorage
+        localStorage.setItem('user', JSON.stringify(result.user));
+        localStorage.setItem('userId', result.user.id);
 
-      if (!res.ok) {
-        setError(data.error || 'Login failed');
-        return;
+        // Check if profile is complete
+        const isComplete = result.user.income && result.user.taxRegime && result.user.age;
+
+        if (isComplete) {
+          // Format and save complete profile for chat page
+          const profileData = {
+            age: result.user.age || 0,
+            gender: result.user.gender || '',
+            income: result.user.income || '',
+            employmentStatus: result.user.employmentStatus || '',
+            taxRegime: result.user.taxRegime || '',
+            homeownerStatus: result.user.homeownerStatus || '',
+            children: result.user.children || '',
+            childrenAges: result.user.childrenAges || '',
+            parentsAge: result.user.parentsAge || '',
+            investmentCapacity: result.user.investmentCapacity || '',
+            riskAppetite: result.user.riskAppetite || '',
+            financialGoals: result.user.financialGoals || [],
+            existingInvestments: result.user.existingInvestments || [],
+            isProfileComplete: true
+          };
+          localStorage.setItem('userProfile', JSON.stringify(profileData));
+          router.push('/chat');
+        } else {
+          // Profile incomplete, go to setup
+          router.push('/profile-setup');
+        }
+        router.refresh();
+      } else {
+        setError(result.message || 'Login failed');
       }
-
-      router.push('/chat');
-      router.refresh();
-    } catch {
-      setError('Something went wrong');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -64,10 +87,10 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold">AM</span>
+          <div className="flex justify-center mb-4">
+            <LogoWithTagline size="lg" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
+          <h1 className="text-2xl font-bold text-foreground mt-4">Welcome back</h1>
           <p className="text-muted-foreground mt-2">Sign in to Arth-Mitra</p>
         </div>
 

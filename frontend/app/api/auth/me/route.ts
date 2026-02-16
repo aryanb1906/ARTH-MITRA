@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { getUserById } from '@/lib/users';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function GET() {
   try {
     const payload = await getCurrentUser();
-    
+
     if (!payload) {
       return NextResponse.json(
         { user: null },
@@ -13,23 +14,26 @@ export async function GET() {
       );
     }
 
-    // Get fresh user data from DB
-    const user = await getUserById(payload.userId);
-    
-    if (!user) {
+    // Get fresh user data from backend API
+    const profileRes = await fetch(`${API_BASE}/api/users/${payload.userId}/profile`, {
+      cache: 'no-store',
+    });
+
+    if (!profileRes.ok) {
       return NextResponse.json(
         { user: null },
         { status: 200 }
       );
     }
 
+    const profileData = await profileRes.json();
+
     return NextResponse.json({
       user: {
-        id: user._id!.toString(),
-        email: user.email,
-        name: user.name,
-        avatar: user.avatar,
-        provider: user.provider,
+        id: payload.userId,
+        email: payload.email,
+        name: payload.name,
+        provider: payload.provider || 'credentials',
       },
     });
   } catch (error) {

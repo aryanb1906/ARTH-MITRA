@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -16,6 +16,8 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { useAuth } from '@/components/auth-provider'
+import { updateProfile as updateUserProfile, getProfile } from '@/lib/api'
+import { Logo } from '@/components/logo'
 
 interface UserProfile {
     age: number | ''
@@ -57,31 +59,51 @@ export default function ProfileSetupPage() {
     const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE)
     const [isSaving, setIsSaving] = useState(false)
     const [completedFields, setCompletedFields] = useState<string[]>([])
+    const initializationDone = useRef(false)
 
     useEffect(() => {
-        // Check if already has completed profile
-        const savedProfile = localStorage.getItem('userProfile')
-        const parsedProfile = savedProfile ? (JSON.parse(savedProfile) as Partial<UserProfile>) : null
+        if (initializationDone.current) return
+        initializationDone.current = true
 
-        if (parsedProfile?.isProfileComplete) {
-            router.push('/chat')
-            return
+        // Check for OAuth success redirect - just parse and store data
+        const urlParams = new URLSearchParams(window.location.search)
+        const oauthSuccess = urlParams.get('oauth_success')
+        const userData = urlParams.get('user_data')
+
+        if (oauthSuccess === 'true' && userData) {
+            try {
+                const user = JSON.parse(userData)
+                localStorage.setItem('userId', user.id)
+                localStorage.setItem('userEmail', user.email)
+                localStorage.setItem('userName', user.username)
+                localStorage.removeItem('userProfile') // Clear old profile data
+                window.history.replaceState({}, '', '/profile-setup')
+            } catch (error) {
+                console.error('Failed to parse OAuth user data:', error)
+            }
         }
 
-        // Load profile if exists
-        const mergedProfile: UserProfile = { ...DEFAULT_PROFILE, ...(parsedProfile || {}) }
-        setProfile(mergedProfile)
+        // Load saved profile from localStorage if exists (for partial profiles)
+        const savedProfile = localStorage.getItem('userProfile')
+        if (savedProfile) {
+            try {
+                const parsed = JSON.parse(savedProfile) as Partial<UserProfile>
+                const mergedProfile: UserProfile = { ...DEFAULT_PROFILE, ...parsed }
+                setProfile(mergedProfile)
 
-        // Track completed fields
-        const requiredFields = ['age', 'gender', 'income', 'employmentStatus', 'taxRegime', 'homeownerStatus']
-        const completed = requiredFields.filter(field => {
-            const value = mergedProfile[field as keyof UserProfile]
-            return value && value !== ''
-        })
-        setCompletedFields(completed)
+                const requiredFields = ['age', 'gender', 'income', 'employmentStatus', 'taxRegime', 'homeownerStatus']
+                const completed = requiredFields.filter(field => {
+                    const value = mergedProfile[field as keyof UserProfile]
+                    return value && value !== ''
+                })
+                setCompletedFields(completed)
+            } catch (error) {
+                console.error('Failed to parse saved profile:', error)
+            }
+        }
     }, [])
 
-    const handleSaveProfile = () => {
+    const handleSaveProfile = async () => {
         // Validate required fields
         const requiredFields = ['age', 'gender', 'income', 'employmentStatus', 'taxRegime', 'homeownerStatus']
         const allFieldsFilled = requiredFields.every(field => {
@@ -96,17 +118,41 @@ export default function ProfileSetupPage() {
 
         setIsSaving(true)
 
-        // Save profile with completion flag
-        const profileToSave = {
-            ...profile,
-            isProfileComplete: true,
-        }
-        localStorage.setItem('userProfile', JSON.stringify(profileToSave))
+        try {
+            // Get userId from localStorage
+            const userId = localStorage.getItem('userId')
+            if (!userId) {
+                alert('User not found. Please login again.')
+                router.push('/login')
+                return
+            }
 
-        // Redirect to chat
-        setTimeout(() => {
-            router.push('/chat')
-        }, 500)
+            // Convert age to number
+            const profileData = {
+                ...profile,
+                age: typeof profile.age === 'string' ? parseInt(profile.age) : profile.age,
+            }
+
+            // Update profile in database
+            await updateUserProfile(userId, profileData)
+
+            // Update local storage for backward compatibility
+            const profileToSave = {
+                ...profileData,
+                isProfileComplete: true,
+            }
+            localStorage.setItem('userProfile', JSON.stringify(profileToSave))
+
+            // Redirect to chat
+            setTimeout(() => {
+                router.push('/chat')
+            }, 500)
+        } catch (error) {
+            console.error('Failed to save profile:', error)
+            alert('Failed to save profile. Please try again.')
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const updateProfile = (field: keyof UserProfile, value: any) => {
@@ -138,6 +184,9 @@ export default function ProfileSetupPage() {
                         <ArrowLeft className="w-4 h-4" />
                         Back to Home
                     </Link>
+                    <div className="mb-4">
+                        <Logo size="lg" showText={true} showTagline={true} href={null} />
+                    </div>
                     <h1 className="text-4xl font-bold text-foreground mb-2">Welcome to Arth-Mitra! 👋</h1>
                     <p className="text-muted-foreground text-lg">
                         {user?.name ? `Hi ${user.name},` : 'Hi there,'} let's set up your financial profile for personalized guidance

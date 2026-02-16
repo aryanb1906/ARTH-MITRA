@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createUser, getUserByEmail, getUserByProvider } from '@/lib/users';
 import { signToken, createAuthCookie } from '@/lib/auth';
 
 interface GoogleTokenResponse {
@@ -13,6 +12,8 @@ interface GoogleUserInfo {
   name: string;
   picture?: string;
 }
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
 export async function GET(req: NextRequest) {
   try {
@@ -69,40 +70,77 @@ export async function GET(req: NextRequest) {
 
     const googleUser: GoogleUserInfo = await userInfoResponse.json();
 
-    // Find or create user
-    let user = await getUserByProvider('google', googleUser.id);
+    // Try to login with existing account
+    const loginResponse = await fetch(`${API_BASE}/api/users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: googleUser.email,
+        password: `google_oauth_${googleUser.id}`, // Special password for OAuth users
+      }),
+    });
 
-    if (!user) {
-      // Check if email exists with different provider
-      const existingUser = await getUserByEmail(googleUser.email);
-      if (existingUser) {
+    let user;
+    if (loginResponse.ok) {
+      // User exists, login successful
+      const data = await loginResponse.json();
+      user = data.user;
+    } else {
+      // User doesn't exist, create new account
+      const registerResponse = await fetch(`${API_BASE}/api/users/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: googleUser.email,
+          username: googleUser.name || googleUser.email.split('@')[0],
+          password: `google_oauth_${googleUser.id}`, // Special password for OAuth users
+        }),
+      });
+
+      if (!registerResponse.ok) {
+        console.error('Registration failed:', await registerResponse.text());
         return NextResponse.redirect(
-          `${process.env.NEXT_PUBLIC_APP_URL}/login?error=email_exists&provider=${existingUser.provider}`
+          `${process.env.NEXT_PUBLIC_APP_URL}/login?error=registration_failed`
         );
       }
 
-      // Create new user
-      user = await createUser({
-        email: googleUser.email,
-        name: googleUser.name,
-        provider: 'google',
-        providerId: googleUser.id,
-        avatar: googleUser.picture,
-      });
+      const data = await registerResponse.json();
+      user = data.user;
     }
 
-    // Generate JWT
+    // Generate JWT token
     const token = await signToken({
-      userId: user._id!.toString(),
+      userId: user.id,
       email: user.email,
-      name: user.name,
+      name: user.username,
       provider: 'google',
     });
 
-    // Redirect to chat with auth cookie
-    const response = NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/chat`
-    );
+    // Check if user has a complete profile
+    let redirectPath = '/profile-setup'; // Default to profile setup for new users
+    try {
+      const profileResponse = await fetch(`${API_BASE}/api/users/${user.id}/profile`);
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        // If profile has all required fields, redirect to chat
+        if (profileData.income && profileData.taxRegime && profileData.age) {
+          redirectPath = '/chat';
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check profile:', error);
+      // If check fails, default to profile-setup
+    }
+
+    // Create redirect response with auth cookie
+    const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}${redirectPath}`);
+    if (redirectPath === '/profile-setup') {
+      // Pass OAuth data only if going to profile-setup
+      redirectUrl.searchParams.set('oauth_success', 'true');
+      redirectUrl.searchParams.set('user_data', JSON.stringify(user));
+    }
+
+    const response = NextResponse.redirect(redirectUrl.toString());
     response.headers.set('Set-Cookie', createAuthCookie(token));
     return response;
   } catch (error) {

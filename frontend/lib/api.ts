@@ -32,7 +32,7 @@ export interface ChatResponse {
 }
 
 export interface UserProfile {
-  age: number;
+  age?: number;
   gender?: string;
   income: string;
   employmentStatus: string;
@@ -45,6 +45,69 @@ export interface UserProfile {
   riskAppetite?: string;
   financialGoals?: string[];
   existingInvestments?: string[];
+}
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  age?: number;
+  gender?: string;
+  income?: string;
+  employmentStatus?: string;
+  taxRegime?: string;
+  homeownerStatus?: string;
+  children?: string;
+  childrenAges?: string;
+  parentsAge?: string;
+  investmentCapacity?: string;
+  riskAppetite?: string;
+  financialGoals?: string[];
+  existingInvestments?: string[];
+  createdAt?: string;
+  lastLogin?: string;
+}
+
+export interface ChatSession {
+  id: string;
+  userId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
+  messageCount: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: string[];
+  responseTime?: number;
+  cached?: boolean;
+  createdAt: string;
+}
+
+export interface SavedMessage {
+  id: string;
+  userId: string;
+  messageId: string;
+  content: string;
+  note?: string;
+  tags?: string[];
+  savedAt: string;
+}
+
+export interface AnalyticsSummary {
+  totalQueries: number;
+  totalUploads: number;
+  activeUsers: number;
+  totalTaxSaved: number;
+  avgResponseTime: number;
+  cacheHitRate: number;
+  topEvents: { type: string; count: number }[];
+  period?: string;
 }
 
 export interface ChatHistoryMessage {
@@ -63,16 +126,147 @@ export interface StatusResponse {
   model: string | null;
 }
 
-// API Functions
+// ===========================
+// Authentication APIs
+// ===========================
+
+export async function register(
+  email: string,
+  username: string,
+  password: string
+): Promise<{ status: string; user: User; message?: string }> {
+  const { data } = await api.post('/api/users/register', {
+    email,
+    username,
+    password,
+  });
+  return data;
+}
+
+export async function login(
+  email: string,
+  password: string
+): Promise<{ status: string; user: User; message?: string }> {
+  const { data } = await api.post('/api/users/login', {
+    email,
+    password,
+  });
+  return data;
+}
+
+// ===========================
+// Profile Management APIs
+// ===========================
+
+export async function getProfile(userId: string): Promise<User> {
+  const { data } = await api.get(`/api/users/${userId}/profile`);
+  return data;
+}
+
+export async function updateProfile(
+  userId: string,
+  profile: Partial<UserProfile>
+): Promise<{ status: string;[key: string]: any }> {
+  const { data } = await api.put(`/api/users/${userId}/profile`, profile);
+  return data;
+}
+
+// ===========================
+// Chat Session APIs
+// ===========================
+
+export async function createChatSession(
+  userId: string,
+  title?: string
+): Promise<ChatSession> {
+  const { data } = await api.post(`/api/users/${userId}/sessions`, { title });
+  return data;
+}
+
+export async function getChatSessions(userId: string): Promise<ChatSession[]> {
+  const { data } = await api.get(`/api/users/${userId}/sessions`);
+  return data.sessions || [];
+}
+
+export async function getChatMessages(sessionId: string): Promise<ChatMessage[]> {
+  const { data } = await api.get(`/api/sessions/${sessionId}/messages`);
+  return data.messages || [];
+}
+
+export async function deleteChatSession(sessionId: string): Promise<{ status: string }> {
+  const { data } = await api.delete(`/api/sessions/${sessionId}`);
+  return data;
+}
+
+// ===========================
+// Saved Messages APIs
+// ===========================
+
+export async function saveMessage(
+  userId: string,
+  messageId: string,
+  note?: string,
+  tags?: string[]
+): Promise<{ status: string; saved_message: SavedMessage }> {
+  const { data } = await api.post(`/api/users/${userId}/saved-messages`, {
+    message_id: messageId,
+    note,
+    tags,
+  });
+  return data;
+}
+
+export async function getSavedMessages(userId: string): Promise<SavedMessage[]> {
+  const { data } = await api.get(`/api/users/${userId}/saved-messages`);
+  return data;
+}
+
+// ===========================
+// Analytics APIs
+// ===========================
+
+export async function getAnalyticsSummary(days: number = 30): Promise<AnalyticsSummary> {
+  const { data } = await api.get(`/api/analytics/summary`, {
+    params: { days },
+  });
+  return data;
+}
+
+export async function getQueryDistribution(
+  days: number = 30
+): Promise<{ date: string; count: number }[]> {
+  const { data } = await api.get(`/api/analytics/query-distribution`, {
+    params: { days },
+  });
+  return data;
+}
+
+// ===========================
+// Document Management APIs
+// ===========================
+
+export async function getUserDocuments(userId: string) {
+  const { data } = await api.get(`/api/users/${userId}/documents`);
+  return data;
+}
+
+// ===========================
+// Chat APIs (Updated)
+// ===========================
+
 export async function sendMessage(
   message: string,
   profile?: UserProfile,
-  history?: ChatHistoryMessage[]
+  history?: ChatHistoryMessage[],
+  userId?: string,
+  sessionId?: string
 ): Promise<ChatResponse> {
   const { data } = await api.post<ChatResponse>('/api/chat', {
     message,
     profile,
-    history
+    history,
+    userId,
+    sessionId,
   });
 
   // Handle response format (may have nested structure from Gemini)
@@ -93,7 +287,9 @@ export async function sendMessageStream(
   profile: UserProfile | undefined,
   history: ChatHistoryMessage[],
   onToken: (token: string) => void,
-  onSources: (sources: string[]) => void
+  onSources: (sources: string[]) => void,
+  userId?: string,
+  sessionId?: string
 ): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
@@ -105,6 +301,8 @@ export async function sendMessageStream(
         message,
         profile,
         history,
+        userId,
+        sessionId,
       }),
     });
 
@@ -157,9 +355,12 @@ export async function sendMessageStream(
   }
 }
 
-export async function uploadDocument(file: File): Promise<UploadResponse> {
+export async function uploadDocument(file: File, userId?: string): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
+  if (userId) {
+    formData.append('userId', userId);
+  }
 
   // Create a separate axios instance for FormData without default headers
   const uploadApi = axios.create({

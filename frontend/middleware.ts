@@ -10,10 +10,13 @@ const JWT_SECRET = new TextEncoder().encode(
 const DEMO_TOKEN = process.env.DEMO_ACCESS_TOKEN;
 
 // Routes that require authentication
-const protectedRoutes = ['/chat'];
+const protectedRoutes = ['/chat', '/settings'];
 
 // Routes that should redirect to /chat if already logged in
 const authRoutes = ['/login', '/register'];
+
+// Routes that do NOT require authentication (open to all)
+const publicRoutes = ['/profile-setup'];
 
 async function verifyToken(token: string) {
   try {

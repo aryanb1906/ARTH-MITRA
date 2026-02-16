@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X } from 'lucide-react'
-import { sendMessageStream, uploadDocument, type ChatHistoryMessage } from '@/lib/api'
+import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
 import { UserMenu } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
+import { Logo } from '@/components/logo'
 import {
   Dialog,
   DialogContent,
@@ -138,6 +139,11 @@ export default function ChatPage() {
     existingInvestments: [] as string[]
   })
 
+  // User and session state for database integration
+  const [userId, setUserId] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [chatSessions, setChatSessions] = useState<any[]>([])
+
   const [showNewChat, setShowNewChat] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
 
@@ -148,27 +154,100 @@ export default function ChatPage() {
   // Profile editing
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [editedProfile, setEditedProfile] = useState(profile)
+  const initializationDone = useRef(false)
 
-  // Check profile completion on mount
+  // Single initialization on mount - handles ALL navigation logic
   useEffect(() => {
-    const savedProfile = localStorage.getItem('userProfile')
-    if (savedProfile) {
-      const parsed = JSON.parse(savedProfile)
+    if (initializationDone.current) return
+    initializationDone.current = true
 
-      // If profile is not complete, redirect to setup
-      if (!parsed.isProfileComplete) {
-        router.push('/profile-setup')
+    const initializeChat = async () => {
+      // Get userId from localStorage
+      const storedUserId = localStorage.getItem('userId')
+      if (!storedUserId) {
+        // No user ID - redirect to login
+        router.push('/login')
         return
       }
+      setUserId(storedUserId)
 
-      // Load the complete profile
-      setProfile(parsed)
-      setEditedProfile(parsed)
-    } else {
-      // No profile exists, redirect to setup
-      router.push('/profile-setup')
+      try {
+        // Fetch profile from database
+        const userProfile = await getProfile(storedUserId)
+
+        // Check if profile is complete (all required fields filled)
+        const isComplete = userProfile.income && userProfile.taxRegime && userProfile.age
+
+        if (!isComplete) {
+          // Profile incomplete - redirect to profile-setup
+          router.push('/profile-setup')
+          return
+        }
+
+        // Map database profile to local profile format
+        const profileData = {
+          age: userProfile.age || 0,
+          gender: userProfile.gender || '',
+          income: userProfile.income || '',
+          employmentStatus: userProfile.employmentStatus || '',
+          taxRegime: userProfile.taxRegime || '',
+          homeownerStatus: userProfile.homeownerStatus || '',
+          children: userProfile.children || '',
+          childrenAges: userProfile.childrenAges || '',
+          parentsAge: userProfile.parentsAge || '',
+          investmentCapacity: userProfile.investmentCapacity || '',
+          riskAppetite: userProfile.riskAppetite || '',
+          financialGoals: userProfile.financialGoals || [],
+          existingInvestments: userProfile.existingInvestments || []
+        }
+
+        // Load the complete profile
+        setProfile(profileData)
+        setEditedProfile(profileData)
+
+        // Also save to localStorage for backward compatibility
+        localStorage.setItem('userProfile', JSON.stringify({ ...profileData, isProfileComplete: true }))
+      } catch (error) {
+        console.error('Failed to load profile:', error)
+        // Fallback to localStorage if API fails
+        const savedProfile = localStorage.getItem('userProfile')
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile)
+          if (parsed.isProfileComplete) {
+            setProfile(parsed)
+            setEditedProfile(parsed)
+          } else {
+            router.push('/profile-setup')
+            return
+          }
+        } else {
+          router.push('/profile-setup')
+          return
+        }
+      }
+
+      // Create or load chat session
+      try {
+        // Check if there's an active session in localStorage
+        const storedSessionId = localStorage.getItem('currentSessionId')
+        if (storedSessionId) {
+          setSessionId(storedSessionId)
+        } else {
+          // Create a new session
+          const newSession = await createChatSession(storedUserId, 'New Chat')
+          setSessionId(newSession.id)
+          localStorage.setItem('currentSessionId', newSession.id)
+        }
+
+        // Load all chat sessions for the user
+        loadChatSessions(storedUserId)
+      } catch (error) {
+        console.error('Failed to initialize session:', error)
+      }
     }
-  }, [router])
+
+    initializeChat()
+  }, [])
 
   // Load chat history on mount
   useEffect(() => {
@@ -472,7 +551,9 @@ export default function ChatPage() {
               ? { ...msg, sources }
               : msg
           ))
-        }
+        },
+        userId || undefined,
+        sessionId || undefined
       )
     } catch (error) {
       console.error('Chat error:', error)
@@ -512,11 +593,114 @@ export default function ChatPage() {
     setIsLoading(false)
   }
 
-  const handleSaveProfile = () => {
-    setProfile(editedProfile)
-    setIsEditingProfile(false)
-    // Save profile updates to localStorage
-    localStorage.setItem('userProfile', JSON.stringify(editedProfile))
+  const handleNewChat = async () => {
+    try {
+      if (!userId) {
+        console.error('User ID not found')
+        return
+      }
+
+      // Create a new session
+      const newSession = await createChatSession(userId, 'New Chat')
+      setSessionId(newSession.id)
+      localStorage.setItem('currentSessionId', newSession.id)
+
+      // Clear chat history and show welcome message
+      setMessages([buildWelcomeMessage()])
+      setShowSuggestions(true)
+      setLastUploadedFile('')
+      setStreamingMessageId(null)
+      setIsLoading(false)
+
+      // Reload chat sessions to show the new one
+      loadChatSessions(userId)
+    } catch (error) {
+      console.error('Failed to create new chat:', error)
+      alert('Failed to create new chat. Please try again.')
+    }
+  }
+
+  const loadChatSessions = async (userId: string) => {
+    try {
+      const sessions = await getChatSessions(userId)
+      setChatSessions(sessions)
+    } catch (error) {
+      console.error('Failed to load chat sessions:', error)
+    }
+  }
+
+  const handleLoadSession = async (sessionId: string, sessionTitle: string) => {
+    try {
+      // Set the active session
+      setSessionId(sessionId)
+      localStorage.setItem('currentSessionId', sessionId)
+
+      // Load messages for this session
+      const apiMessages = await getChatMessages(sessionId)
+
+      if (apiMessages && apiMessages.length > 0) {
+        // Convert API messages to local format
+        const convertedMessages: Message[] = apiMessages.map(msg => ({
+          id: msg.id,
+          type: msg.role === 'user' ? 'user' : 'ai',
+          content: msg.content,
+          timestamp: new Date(msg.createdAt),
+          sources: msg.sources || []
+        }))
+        setMessages(convertedMessages)
+      } else {
+        setMessages([buildWelcomeMessage()])
+      }
+
+      setShowSuggestions(false)
+      setStreamingMessageId(null)
+      setIsLoading(false)
+    } catch (error) {
+      console.error('Failed to load session:', error)
+      alert('Failed to load chat session. Please try again.')
+    }
+  }
+
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      if (!confirm('Are you sure you want to delete this chat?')) return
+
+      // Delete from backend
+      await deleteChatSession(sessionId)
+
+      // Remove from local state
+      setChatSessions(prev => prev.filter(s => s.id !== sessionId))
+
+      // If it's the current session, create a new one
+      if (sessionId === sessionId) {
+        handleNewChat()
+      }
+    } catch (error) {
+      console.error('Failed to delete session:', error)
+      alert('Failed to delete chat. Please try again.')
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      if (!userId) {
+        console.error('User ID not found')
+        return
+      }
+
+      // Save to database
+      await updateUserProfile(userId, editedProfile)
+
+      // Update local state
+      setProfile(editedProfile)
+      setIsEditingProfile(false)
+
+      // Save profile updates to localStorage for backward compatibility
+      localStorage.setItem('userProfile', JSON.stringify({ ...editedProfile, isProfileComplete: true }))
+    } catch (error) {
+      console.error('Failed to save profile:', error)
+      alert('Failed to save profile. Please try again.')
+    }
   }
 
   const handleRemovePinnedChart = (id: string) => {
@@ -597,7 +781,7 @@ export default function ChatPage() {
               <span className="text-sm font-medium text-foreground">Back Home</span>
             </Link>
 
-            <Button className="w-full mb-4 gap-2">
+            <Button className="w-full mb-4 gap-2" onClick={handleNewChat}>
               <Plus className="w-4 h-4" />
               New Chat
             </Button>
@@ -834,22 +1018,49 @@ export default function ChatPage() {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             <div>
-              <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Recent Queries</h3>
+              <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Chat History</h3>
               <div className="space-y-2">
-                {recentQueries.map((query) => (
-                  <button
-                    key={query.id}
-                    className="w-full text-left p-3 rounded-lg text-xs text-muted-foreground hover:bg-primary/5 hover:text-foreground transition-colors border border-transparent hover:border-border/40 group"
-                  >
-                    <div className="flex items-start gap-2">
-                      <Clock className="w-3 h-3 flex-shrink-0 mt-0.5 group-hover:text-primary" />
-                      <div className="flex-1">
-                        <p className="line-clamp-2">{query.title}</p>
-                        <p className="text-xs opacity-50 mt-1">{query.timestamp}</p>
+                {chatSessions && chatSessions.length > 0 ? (
+                  chatSessions.map((session: any) => (
+                    <button
+                      key={session.id}
+                      onClick={() => handleLoadSession(session.id, session.title)}
+                      className={`w-full text-left p-3 rounded-lg text-xs transition-colors border group ${sessionId === session.id
+                        ? 'border-primary/40 bg-primary/5 text-foreground'
+                        : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground border-transparent hover:border-border/40'
+                        }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="line-clamp-2 break-words">{session.title || 'New Chat'}</p>
+                          <p className="text-xs opacity-50 mt-1">
+                            {new Date(session.createdAt).toLocaleDateString('en-IN')}
+                          </p>
+                        </div>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteSession(session.id)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.stopPropagation()
+                              handleDeleteSession(session.id)
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 text-red-500 cursor-pointer"
+                          title="Delete chat"
+                        >
+                          <X className="w-3 h-3" />
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground/60 py-2">No chat history yet</p>
+                )}
               </div>
             </div>
 
@@ -876,17 +1087,19 @@ export default function ChatPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-muted-foreground uppercase">{snapshot.type}</span>
-                          <button
+                          <div
                             onClick={(event) => {
                               event.preventDefault()
                               event.stopPropagation()
                               handleRemovePinnedChart(snapshot.id)
                             }}
-                            className="p-1 rounded hover:bg-muted"
+                            className="p-1 rounded hover:bg-muted cursor-pointer"
                             title="Remove pinned chart"
+                            role="button"
+                            tabIndex={0}
                           >
                             <X className="h-3 w-3 text-muted-foreground" />
-                          </button>
+                          </div>
                         </div>
                       </div>
                     </button>
@@ -937,14 +1150,10 @@ export default function ChatPage() {
                     <ArrowLeft className="w-4 h-4" />
                   </Button>
                 </Link>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-md">
-                    <span className="text-white font-bold text-sm">AM</span>
-                  </div>
-                  <div>
-                    <h1 className="text-base font-bold text-foreground">Arth-Mitra Chat</h1>
-                    <p className="text-xs text-muted-foreground">AI Financial Assistant</p>
-                  </div>
+                <Logo size="md" showText={false} href="/" />
+                <div>
+                  <h1 className="text-base font-bold text-foreground">Arth-Mitra Chat</h1>
+                  <p className="text-xs text-muted-foreground">AI Financial Assistant</p>
                 </div>
               </div>
               <div className="hidden md:flex items-center gap-4">
