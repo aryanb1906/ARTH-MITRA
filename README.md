@@ -1159,7 +1159,7 @@ in the Software without restriction...
 | 2 | **Aditya** | [@bigbrainbarik](https://github.com/bigbrainbarik) | Contributor |
 | 3 | **Naman** | [@nmncodes](https://github.com/nmncodes) | Contributor |
 | 4 | **Poushali** | [@patrapoushali](https://github.com/patrapoushali) | Contributor |
-| 5 | **Aayushi Shrehth** | [@AaS2703](https://github.com/AaS2703) | Contributor |
+| 5 | **Aayushi ** | [@AaS2703](https://github.com/AaS2703) | Contributor |
 ### 🚀 Community Contributors
 
 We appreciate all contributors who have helped make Arth-Mitra better!
