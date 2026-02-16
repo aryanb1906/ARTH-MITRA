@@ -12,8 +12,10 @@ This document describes the new database and analytics features added to ARTH-MI
 2. **Chat History Persistence** - All conversations saved in database
 3. **Document Tracking** - Track uploaded documents per user
 4. **Saved Messages** - Bookmark important AI responses
-5. **Analytics Dashboard** - Usage statistics and insights
+5. **Analytics Dashboard** - Usage statistics and insights on landing page
 6. **Performance Tracking** - Response times and cache hit rates
+7. **Live Stats Display** - Real-time analytics shown on landing page (updates every 30 seconds)
+8. **Query Tracking** - Automatic tracking of financial queries with tax savings estimation
 
 ---
 
@@ -299,6 +301,84 @@ GET /api/analytics/query-distribution?days=7
 #### User Analytics
 ```http
 GET /api/users/{user_id}/analytics?days=30
+```
+
+---
+
+## 🎯 Landing Page Analytics Display
+
+### LiveStats Component
+The landing page features a real-time analytics display component (`LiveStats`) that shows three key metrics:
+
+#### **Displayed Metrics**
+
+1. **Financial Queries Answered**
+   - Displays total number of queries processed
+   - Format: Large number (e.g., "50K+")
+   - Data source: `totalQueries` from analytics summary
+
+2. **Tax Saved For Users**
+   - Calculated from query count: `totalQueries × ₹20,000`
+   - Format: Indian currency format (e.g., "₹10Cr+")
+   - Estimation: ₹20,000 saved per financial query on average
+
+3. **Accuracy Rate**
+   - Fixed at 98% (represents AI response quality)
+   - Format: Percentage display
+   - Can be updated based on actual metrics
+
+### **Implementation Details**
+
+**Component Location:** `frontend/components/live-stats.tsx`
+
+**Featured On:** Landing page (`frontend/app/page.tsx`) - Hero section below CTA buttons
+
+**Auto-Refresh Interval:** 30 seconds (adjustable via `setInterval`)
+
+**API Endpoint Used:** `GET /api/analytics/summary?days=7`
+
+### **Frontend Integration Example**
+
+```typescript
+// lib/api.ts - Fetch analytics
+export const getAnalyticsSummary = async (days: number = 7) => {
+  const res = await fetch(`${API_BASE}/api/analytics/summary?days=${days}`);
+  return res.json();
+};
+
+// components/live-stats.tsx - Display stats
+function formatNumber(num: number): string {
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M+`;
+  if (num >= 1000) return `${(num / 1000).toFixed(0)}K+`;
+  return num.toString();
+}
+
+function formatCurrency(amount: number): string {
+  if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(0)}Cr+`;
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(0)}L+`;
+  return `₹${amount}`;
+}
+```
+
+### **Backend Response Format**
+
+The `/api/analytics/summary?days=7` endpoint returns:
+
+```json
+{
+  "totalQueries": 150,
+  "totalTaxSaved": 3000000,  // 150 × ₹20,000
+  "totalUploads": 12,
+  "activeUsers": 8,
+  "avgResponseTime": 2.34,
+  "cacheHitRate": 68.5,
+  "topEvents": [
+    {"type": "query", "count": 150},
+    {"type": "upload", "count": 12},
+    {"type": "login", "count": 25}
+  ],
+  "period": "Last 7 days"
+}
 ```
 
 ---
