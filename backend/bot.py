@@ -36,7 +36,7 @@ CACHE_SIZE = 100  # Number of queries to cache
 CACHE_TTL = 3600  # Cache time-to-live in seconds
 OPTIMIZED_CHUNK_SIZE = 500  # Reduced from 1000 for faster retrieval
 OPTIMIZED_CHUNK_OVERLAP = 50  # Reduced from 200
-OPTIMIZED_RETRIEVAL_K = 3  # Reduced from 5 for faster queries
+OPTIMIZED_RETRIEVAL_K = 5  # Optimized to retrieve top 5 most relevant documents
 
 # Month name mappings for date parsing
 MONTH_NAMES = {
