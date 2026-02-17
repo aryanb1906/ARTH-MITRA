@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cpu, Github, Mail, Phone, CheckCircle2, TrendingUp, BarChart3, Lightbulb, Award } from 'lucide-react'
+import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cpu, Github, Mail, Phone, CheckCircle2, TrendingUp, BarChart3, Lightbulb, Award, Calculator } from 'lucide-react'
 import { useEffect, useState } from "react"
 import { AuthButtons, MobileAuthButtons } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
@@ -50,6 +50,9 @@ export default function Page() {
             <a href="#how-it-works" className="text-sm text-foreground hover:text-primary transition-colors">How It Works</a>
             <a href="#features" className="text-sm text-foreground hover:text-primary transition-colors">Features</a>
             <a href="#testimonials" className="text-sm text-foreground hover:text-primary transition-colors">Use Cases</a>
+            <Link href="/tax-calculator" className="text-sm text-foreground hover:text-primary transition-colors font-medium bg-primary/10 px-3 py-1 rounded-lg hover:bg-primary/20">
+              Tax Calculator
+            </Link>
             <AuthButtons />
           </div>
           <div className="md:hidden">
@@ -227,15 +230,36 @@ export default function Page() {
               title: 'Real-Time Updates',
               desc: 'Latest tax law changes, scheme updates, and government policy changes reflected instantly',
               color: 'from-purple-400/20 to-purple-400/5'
+            },
+            {
+              icon: Calculator,
+              title: 'Tax Calculator',
+              desc: 'Compare old and new tax regimes instantly. Calculate your tax liability with deductions included',
+              color: 'from-yellow-400/20 to-yellow-400/5',
+              link: '/tax-calculator'
             }
           ].map((feature, i) => (
-            <Card key={i} className="p-8 hover:shadow-xl transition-all duration-300 border border-border/40 group cursor-pointer">
-              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                <feature.icon className="w-7 h-7 text-primary" />
-              </div>
-              <h3 className="text-lg font-bold text-foreground mb-3">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
-            </Card>
+            <div key={i}>
+              {feature.link ? (
+                <Link href={feature.link}>
+                  <Card className="p-8 hover:shadow-xl transition-all duration-300 border border-border/40 group cursor-pointer h-full">
+                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                      <feature.icon className="w-7 h-7 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground mb-3">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
+                  </Card>
+                </Link>
+              ) : (
+                <Card className="p-8 hover:shadow-xl transition-all duration-300 border border-border/40 group cursor-pointer h-full">
+                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                    <feature.icon className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground mb-3">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
+                </Card>
+              )}
+            </div>
           ))}
         </div>
       </section>
