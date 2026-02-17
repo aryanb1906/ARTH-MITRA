@@ -21,6 +21,19 @@
 
 ## 🎉 Latest Updates
 
+**✨ NEW: Comprehensive Tax Calculator! 🧮💰✨**
+
+- 💰 **Old vs New Regime Comparison**: Full side-by-side comparison of both tax regimes for FY 2024-25
+- 🎯 **All Deductions**: 80C (₹1.5L), 80D (Health), 80E (Education), 80TTA, HRA, Standard Deduction, Others
+- 👴 **Age Group Support**: Different tax slabs for below 60, senior (60-80), and super senior (80+)
+- 📊 **Professional Charts**: Bar charts, pie charts, and effective rate visualizations using Recharts
+- 🎨 **Dynamic Color Coding**: Green highlights tax-saving regime, yellow shows higher tax
+- 📈 **Advanced Metrics**: Effective tax rate %, Marginal rate %, Deduction utilization %, Take-home %
+- 📱 **Responsive Design**: 3-column input grid that adapts to mobile, tablet, and desktop
+- 🤖 **Smart Recommendations**: AI suggests optimal regime based on your profile and deductions
+- ✅ **Accurate Calculations**: Correct FY 2024-25 progressive tax slabs with 4% cess
+- 🔗 **Easy Navigation**: Accessible from home page and header navigation menu at `/tax-calculator`
+
 **✨ NEW: Live Analytics Dashboard on Landing Page! 📊✨**
 
 - 📈 **Real-Time Stats Display**: Landing page now shows live analytics with 3 key metrics
@@ -485,8 +498,36 @@ Latest tax law changes, scheme updates, and government policies reflected instan
 ### 📊 **Scheme Eligibility Checker**
 Automatically check which government schemes you qualify for based on your profile.
 
-### 💰 **Tax Calculator**
-Calculate tax liability under both old and new tax regimes.
+### 💰 **Tax Calculator** ✨ **NEW**
+**Comprehensive tax calculator with regime comparison at `/tax-calculator`**
+
+Features:
+- **Old vs New Regime Comparison**: Side-by-side analysis of both tax regimes (FY 2024-25)
+- **All Deductions Supported**: 
+  - Section 80C (up to ₹1.5L)
+  - Section 80D (Health Insurance)
+  - Section 80E (Education Loan Interest)
+  - Section 80TTA (Savings Account Interest)
+  - HRA (House Rent Allowance)
+  - Standard Deduction (₹50K)
+  - Other Deductions
+- **Age Group Variations**: 
+  - Below 60 years
+  - Senior Citizen (60-80 years)
+  - Super Senior Citizen (80+ years)
+- **Professional Charts**:
+  - Bar chart comparing total tax across regimes
+  - Effective tax rate comparison
+  - Pie charts showing tax component breakdown
+- **Dynamic Color Coding**: Green for tax-saving regime, Yellow for higher tax
+- **Advanced Metrics**:
+  - Effective tax rate %
+  - Marginal tax rate %
+  - Deduction utilization %
+  - Take-home pay %
+- **Responsive 3-Column Grid**: Mobile-friendly input layout
+- **Smart Recommendations**: AI suggests the best regime based on your profile
+- **Accurate FY 2024-25 Slabs**: Correct progressive tax calculations with 4% cess
 
 ### 📚 **Knowledge Base**
 Comprehensive library of financial terms, concepts, and best practices.
