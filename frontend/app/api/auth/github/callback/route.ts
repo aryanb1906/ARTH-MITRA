@@ -20,7 +20,7 @@ interface GitHubEmail {
   verified: boolean;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function GET(req: NextRequest) {
   try {
@@ -125,19 +125,32 @@ export async function GET(req: NextRequest) {
       const data = await loginResponse.json();
       user = data.user;
     } else {
-      // User doesn't exist, create new account
+      // User doesn't exist with OAuth password, try to create new account
+      // Generate a unique username
+      const baseUsername = (githubUser.name || githubUser.login).replace(/[^a-zA-Z0-9]/g, '');
+      const uniqueUsername = `${baseUsername}_${Date.now().toString(36)}`;
+      
       const registerResponse = await fetch(`${API_BASE}/api/users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email,
-          username: githubUser.name || githubUser.login,
+          username: uniqueUsername,
           password: `github_oauth_${githubUser.id}`, // Special password for OAuth users
         }),
       });
 
       if (!registerResponse.ok) {
-        console.error('Registration failed:', await registerResponse.text());
+        const errorData = await registerResponse.json().catch(() => ({}));
+        console.error('GitHub OAuth registration failed:', errorData);
+        
+        // Check if email already exists (registered with password)
+        if (errorData.detail?.includes('Email already registered')) {
+          return NextResponse.redirect(
+            `${process.env.NEXT_PUBLIC_APP_URL}/login?error=email_exists&provider=email%2Fpassword`
+          );
+        }
+        
         return NextResponse.redirect(
           `${process.env.NEXT_PUBLIC_APP_URL}/login?error=registration_failed`
         );

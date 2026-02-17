@@ -639,6 +639,11 @@ class ArthMitraBot:
     
     def _extract_text(self, content) -> str:
         """Extract text from LLM response content"""
+        # Debug: log what we receive
+        print(f"[DEBUG] _extract_text received: type={type(content)}, value={repr(content)[:100]}")
+        
+        if content is None:
+            return ""
         if isinstance(content, str):
             return content
         if isinstance(content, list):
@@ -648,8 +653,11 @@ class ArthMitraBot:
                     return item.get('text', '')
                 if isinstance(item, str):
                     return item
-            return str(content)
-        return str(content)
+            return str(content) if content else ""
+        # Handle AIMessageChunk or similar objects
+        if hasattr(content, 'text'):
+            return content.text
+        return str(content) if content else ""
     
     def _handle_gold_price_query(self, query: str) -> Optional[Dict]:
         """

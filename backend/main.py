@@ -235,13 +235,17 @@ def chat_stream(request: ChatRequest):
         token_iter, sources = bot.stream_response(request.message, profile=profile_dict, history=history)
 
         def event_stream():
+            token_count = 0
             try:
                 for token in token_iter:
                     if token:
+                        token_count += 1
                         yield f"event: token\ndata: {json.dumps(token)}\n\n"
+                print(f"📤 Streamed {token_count} tokens")
                 yield f"event: sources\ndata: {json.dumps(sources)}\n\n"
                 yield "event: done\ndata: [DONE]\n\n"
             except Exception as e:
+                print(f"❌ Stream error: {e}")
                 yield f"event: error\ndata: {json.dumps(str(e))}\n\n"
                 yield "event: done\ndata: [DONE]\n\n"
 

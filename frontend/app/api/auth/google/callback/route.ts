@@ -13,7 +13,7 @@ interface GoogleUserInfo {
   picture?: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function GET(req: NextRequest) {
   try {
@@ -86,19 +86,32 @@ export async function GET(req: NextRequest) {
       const data = await loginResponse.json();
       user = data.user;
     } else {
-      // User doesn't exist, create new account
+      // User doesn't exist with OAuth password, try to create new account
+      // Generate a unique username
+      const baseUsername = googleUser.name?.replace(/[^a-zA-Z0-9]/g, '') || googleUser.email.split('@')[0];
+      const uniqueUsername = `${baseUsername}_${Date.now().toString(36)}`;
+      
       const registerResponse = await fetch(`${API_BASE}/api/users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: googleUser.email,
-          username: googleUser.name || googleUser.email.split('@')[0],
+          username: uniqueUsername,
           password: `google_oauth_${googleUser.id}`, // Special password for OAuth users
         }),
       });
 
       if (!registerResponse.ok) {
-        console.error('Registration failed:', await registerResponse.text());
+        const errorData = await registerResponse.json().catch(() => ({}));
+        console.error('Google OAuth registration failed:', errorData);
+        
+        // Check if email already exists (registered with password)
+        if (errorData.detail?.includes('Email already registered')) {
+          return NextResponse.redirect(
+            `${process.env.NEXT_PUBLIC_APP_URL}/login?error=email_exists&provider=email%2Fpassword`
+          );
+        }
+        
         return NextResponse.redirect(
           `${process.env.NEXT_PUBLIC_APP_URL}/login?error=registration_failed`
         );

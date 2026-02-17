@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Github, Mail, Loader2, AlertCircle } from 'lucide-react';
-import { login } from '@/lib/api'; import { LogoWithTagline } from '@/components/logo'
+import { LogoWithTagline } from '@/components/logo';
+import { getProfile } from '@/lib/api';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,46 +27,59 @@ function LoginForm() {
     setError('');
 
     try {
-      const result = await login(email, password);
+      // Call the Next.js API route which sets the auth cookie
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (result.status === 'success' && result.user) {
-        // Store user info in localStorage
-        localStorage.setItem('user', JSON.stringify(result.user));
-        localStorage.setItem('userId', result.user.id);
+      const data = await response.json();
 
-        // Check if profile is complete
-        const isComplete = result.user.income && result.user.taxRegime && result.user.age;
-
-        if (isComplete) {
-          // Format and save complete profile for chat page
-          const profileData = {
-            age: result.user.age || 0,
-            gender: result.user.gender || '',
-            income: result.user.income || '',
-            employmentStatus: result.user.employmentStatus || '',
-            taxRegime: result.user.taxRegime || '',
-            homeownerStatus: result.user.homeownerStatus || '',
-            children: result.user.children || '',
-            childrenAges: result.user.childrenAges || '',
-            parentsAge: result.user.parentsAge || '',
-            investmentCapacity: result.user.investmentCapacity || '',
-            riskAppetite: result.user.riskAppetite || '',
-            financialGoals: result.user.financialGoals || [],
-            existingInvestments: result.user.existingInvestments || [],
-            isProfileComplete: true
-          };
-          localStorage.setItem('userProfile', JSON.stringify(profileData));
-          router.push('/chat');
-        } else {
-          // Profile incomplete, go to setup
-          router.push('/profile-setup');
-        }
-        router.refresh();
-      } else {
-        setError(result.message || 'Login failed');
+      if (!response.ok) {
+        setError(data.error || 'Invalid email or password');
+        return;
       }
+
+      const user = data.user;
+      
+      // Store user info in localStorage
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userId', user.id);
+
+      // Fetch full profile from backend to check completeness
+      const fullProfile = await getProfile(user.id);
+      
+      // Check if profile is complete
+      const isComplete = fullProfile.income && fullProfile.taxRegime && fullProfile.age;
+
+      if (isComplete) {
+        // Format and save complete profile for chat page
+        const profileData = {
+          age: fullProfile.age || 0,
+          gender: fullProfile.gender || '',
+          income: fullProfile.income || '',
+          employmentStatus: fullProfile.employmentStatus || '',
+          taxRegime: fullProfile.taxRegime || '',
+          homeownerStatus: fullProfile.homeownerStatus || '',
+          children: fullProfile.children || '',
+          childrenAges: fullProfile.childrenAges || '',
+          parentsAge: fullProfile.parentsAge || '',
+          investmentCapacity: fullProfile.investmentCapacity || '',
+          riskAppetite: fullProfile.riskAppetite || '',
+          financialGoals: fullProfile.financialGoals || [],
+          existingInvestments: fullProfile.existingInvestments || [],
+          isProfileComplete: true
+        };
+        localStorage.setItem('userProfile', JSON.stringify(profileData));
+        router.push('/chat');
+      } else {
+        // Profile incomplete, go to setup
+        router.push('/profile-setup');
+      }
+      router.refresh();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Invalid email or password');
+      setError(err?.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
