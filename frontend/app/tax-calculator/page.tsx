@@ -409,7 +409,7 @@ export default function TaxCalculatorPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-sm text-muted-foreground">
-                                            {taxResult.savings.amount > 0 ? 'You Save in Old Regime' : 'You Save in New Regime'}
+                                            {taxResult.savings.amount > 0 ? 'You Save in New Regime' : 'You Save in Old Regime'}
                                         </p>
                                         <p className="text-4xl font-bold text-primary">
                                             {formatCurrency(Math.abs(taxResult.savings.amount))}
@@ -537,38 +537,38 @@ export default function TaxCalculatorPage() {
                             {/* Results Cards - Old & New Regime Comparison */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Old Regime Details - Dynamic Color */}
-                                <Card className={`p-6 border-2 ${taxResult.savings.amount > 0 ? 'border-green-200 bg-green-50/30' : 'border-yellow-200 bg-yellow-50/30'}`}>
-                                    <h3 className={`text-xl font-bold mb-6 ${taxResult.savings.amount > 0 ? 'text-green-900' : 'text-yellow-900'}`}>
-                                        💰 Old Tax Regime {taxResult.savings.amount > 0 && '(Saves More)'}
+                                <Card className={`p-6 border-2 ${taxResult.savings.amount < 0 ? 'border-green-200 bg-green-50/30' : 'border-yellow-200 bg-yellow-50/30'}`}>
+                                    <h3 className={`text-xl font-bold mb-6 ${taxResult.savings.amount < 0 ? 'text-green-900' : 'text-yellow-900'}`}>
+                                        💰 Old Tax Regime {taxResult.savings.amount < 0 && '(Saves More)'}
                                     </h3>
 
                                     <div className="space-y-4">
-                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Gross Income</p>
                                                 <p className="font-semibold">{formatCurrency(parseFloat(grossIncome || '0'))}</p>
                                             </div>
                                         </div>
 
-                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Total Deductions</p>
                                                 <p className="font-semibold">{formatCurrency(parseFloat(grossIncome || '0') - taxResult.oldRegime.taxableIncome)}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className={`text-xs ${taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>Utilization</p>
-                                                <p className={`font-semibold ${taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.oldRegime.deductionUtilization.toFixed(1)}%</p>
+                                                <p className={`text-xs ${taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}`}>Utilization</p>
+                                                <p className={`font-semibold ${taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.oldRegime.deductionUtilization.toFixed(1)}%</p>
                                             </div>
                                         </div>
 
-                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Taxable Income</p>
                                                 <p className="font-semibold">{formatCurrency(taxResult.oldRegime.taxableIncome)}</p>
                                             </div>
                                         </div>
 
-                                        <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Income Tax</p>
                                                 <p className="font-semibold">{formatCurrency(taxResult.oldRegime.tax)}</p>
@@ -579,23 +579,23 @@ export default function TaxCalculatorPage() {
                                             </div>
                                         </div>
 
-                                        <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Effective Rate</p>
-                                                <p className={`font-semibold ${taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.oldRegime.effectiveRate.toFixed(2)}%</p>
+                                                <p className={`font-semibold ${taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.oldRegime.effectiveRate.toFixed(2)}%</p>
                                             </div>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Marginal Rate</p>
-                                                <p className={`font-semibold ${taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.oldRegime.marginalRate}%</p>
+                                                <p className={`font-semibold ${taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.oldRegime.marginalRate}%</p>
                                             </div>
                                         </div>
 
                                         <div className="bg-white/50 p-4 rounded-lg space-y-3">
                                             <div className="flex justify-between font-bold text-lg">
                                                 <span>Total Tax Liability</span>
-                                                <span className={taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}>{formatCurrency(taxResult.oldRegime.totalTax)}</span>
+                                                <span className={taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}>{formatCurrency(taxResult.oldRegime.totalTax)}</span>
                                             </div>
-                                            <div className={`flex justify-between pt-3 border-t ${taxResult.savings.amount > 0 ? 'text-green-600 border-green-200' : 'text-yellow-600 border-yellow-200'}`}>
+                                            <div className={`flex justify-between pt-3 border-t ${taxResult.savings.amount < 0 ? 'text-green-600 border-green-200' : 'text-yellow-600 border-yellow-200'}`}>
                                                 <span>Net Income (After Tax)</span>
                                                 <span className="font-bold">{formatCurrency(taxResult.oldRegime.netIncome)}</span>
                                             </div>
@@ -608,38 +608,38 @@ export default function TaxCalculatorPage() {
                                 </Card>
 
                                 {/* New Regime Details - Dynamic Color */}
-                                <Card className={`p-6 border-2 ${taxResult.savings.amount < 0 ? 'border-green-200 bg-green-50/30' : 'border-yellow-200 bg-yellow-50/30'}`}>
-                                    <h3 className={`text-xl font-bold mb-6 ${taxResult.savings.amount < 0 ? 'text-green-900' : 'text-yellow-900'}`}>
-                                        💚 New Tax Regime {taxResult.savings.amount < 0 && '(Saves More)'}
+                                <Card className={`p-6 border-2 ${taxResult.savings.amount > 0 ? 'border-green-200 bg-green-50/30' : 'border-yellow-200 bg-yellow-50/30'}`}>
+                                    <h3 className={`text-xl font-bold mb-6 ${taxResult.savings.amount > 0 ? 'text-green-900' : 'text-yellow-900'}`}>
+                                        💚 New Tax Regime {taxResult.savings.amount > 0 && '(Saves More)'}
                                     </h3>
 
                                     <div className="space-y-4">
-                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Gross Income</p>
                                                 <p className="font-semibold">{formatCurrency(parseFloat(grossIncome || '0'))}</p>
                                             </div>
                                         </div>
 
-                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Standard Deduction</p>
                                                 <p className="font-semibold">{formatCurrency(parseFloat(standardDeduction || '0'))}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className={`text-xs ${taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}`}>Utilization</p>
-                                                <p className={`font-semibold ${taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.newRegime.deductionUtilization.toFixed(1)}%</p>
+                                                <p className={`text-xs ${taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>Utilization</p>
+                                                <p className={`font-semibold ${taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.newRegime.deductionUtilization.toFixed(1)}%</p>
                                             </div>
                                         </div>
 
-                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Taxable Income</p>
                                                 <p className="font-semibold">{formatCurrency(taxResult.newRegime.taxableIncome)}</p>
                                             </div>
                                         </div>
 
-                                        <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Income Tax</p>
                                                 <p className="font-semibold">{formatCurrency(taxResult.newRegime.tax)}</p>
@@ -650,14 +650,14 @@ export default function TaxCalculatorPage() {
                                             </div>
                                         </div>
 
-                                        <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                        <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Effective Rate</p>
-                                                <p className={`font-semibold ${taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.newRegime.effectiveRate.toFixed(2)}%</p>
+                                                <p className={`font-semibold ${taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.newRegime.effectiveRate.toFixed(2)}%</p>
                                             </div>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Marginal Rate</p>
-                                                <p className={`font-semibold ${taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.newRegime.marginalRate}%</p>
+                                                <p className={`font-semibold ${taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>{taxResult.newRegime.marginalRate}%</p>
                                             </div>
                                         </div>
 
@@ -771,8 +771,8 @@ export default function TaxCalculatorPage() {
                                 <h3 className="font-bold text-lg mb-3">💡 Recommendation</h3>
                                 <p className="text-muted-foreground mb-4">
                                     {taxResult.savings.amount > 0
-                                        ? `Based on your income and deductions, you should choose the OLD REGIME as it saves you ₹${Math.abs(taxResult.savings.amount).toLocaleString('en-IN')} (${Math.abs(taxResult.savings.percentage).toFixed(1)}% savings). With ${taxResult.oldRegime.deductionUtilization.toFixed(1)}% deduction utilization, the Old Regime maximizes your deductions.`
-                                        : `Based on your income and deductions, you should choose the NEW REGIME as it saves you ₹${Math.abs(taxResult.savings.amount).toLocaleString('en-IN')} (${Math.abs(taxResult.savings.percentage).toFixed(1)}% savings). The simpler structure with lower rates makes the New Regime more beneficial for you.`}
+                                        ? `Based on your income and deductions, you should choose the NEW REGIME as it saves you ₹${Math.abs(taxResult.savings.amount).toLocaleString('en-IN')} (${Math.abs(taxResult.savings.percentage).toFixed(1)}% savings). The simpler structure with lower rates makes the New Regime more beneficial for you.`
+                                        : `Based on your income and deductions, you should choose the OLD REGIME as it saves you ₹${Math.abs(taxResult.savings.amount).toLocaleString('en-IN')} (${Math.abs(taxResult.savings.percentage).toFixed(1)}% savings). With ${taxResult.oldRegime.deductionUtilization.toFixed(1)}% deduction utilization, the Old Regime maximizes your deductions.`}
                                 </p>
                                 <p className="text-sm text-blue-700 font-semibold">
                                     ⚠️ Always consult with a tax professional for personalized advice before filing your returns.
