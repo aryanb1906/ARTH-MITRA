@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Github, Mail, Loader2, AlertCircle } from 'lucide-react';
-import { register } from '@/lib/api'; import { LogoWithTagline } from '@/components/logo'
+import { LogoWithTagline } from '@/components/logo'
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -35,21 +35,31 @@ export default function RegisterPage() {
     }
 
     try {
-      const result = await register(email, name, password);
+      // Call Next.js API route which sets the auth cookie
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name }),
+      });
 
-      if (result.status === 'success' && result.user) {
-        // Store user info in localStorage (temporary solution)
-        localStorage.setItem('user', JSON.stringify(result.user));
-        localStorage.setItem('userId', result.user.id);
+      const data = await response.json();
 
-        // Redirect to profile setup after successful registration
-        router.push('/profile-setup');
-        router.refresh();
-      } else {
-        setError(result.message || 'Registration failed');
+      if (!response.ok) {
+        setError(data.error || 'Registration failed');
+        return;
       }
+
+      const user = data.user;
+
+      // Store user info in localStorage
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userId', user.id);
+
+      // Redirect to profile setup after successful registration
+      router.push('/profile-setup');
+      router.refresh();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Registration failed. Email may already exist.');
+      setError(err?.message || 'Registration failed. Email may already exist.');
     } finally {
       setIsLoading(false);
     }

@@ -228,56 +228,67 @@ export default function ChatPage() {
 
       // Create or load chat session
       try {
-        // Check if there's an active session in localStorage
-        const storedSessionId = localStorage.getItem('currentSessionId')
+        // Check if there's an active session in localStorage (user-specific)
+        const storedSessionId = localStorage.getItem(`currentSessionId_${storedUserId}`)
         if (storedSessionId) {
           setSessionId(storedSessionId)
+          // Load messages for this session from API
+          try {
+            const apiMessages = await getChatMessages(storedSessionId)
+            if (apiMessages && apiMessages.length > 0) {
+              const convertedMessages: Message[] = apiMessages.map(msg => ({
+                id: msg.id,
+                type: msg.role === 'user' ? 'user' : 'ai',
+                content: msg.content,
+                timestamp: new Date(msg.createdAt),
+                sources: msg.sources || []
+              }))
+              setMessages(convertedMessages)
+            } else {
+              // Fallback to user-specific localStorage
+              const savedHistory = localStorage.getItem(`chatHistory_${storedUserId}`)
+              if (savedHistory) {
+                const parsed = JSON.parse(savedHistory) as Array<Omit<Message, 'timestamp'> & { timestamp: string }>
+                setMessages(parsed.map(item => ({
+                  ...item,
+                  timestamp: new Date(item.timestamp)
+                })))
+              } else {
+                setMessages([buildWelcomeMessage()])
+              }
+            }
+          } catch {
+            setMessages([buildWelcomeMessage()])
+          }
         } else {
           // Create a new session
           const newSession = await createChatSession(storedUserId, 'New Chat')
           setSessionId(newSession.id)
-          localStorage.setItem('currentSessionId', newSession.id)
+          localStorage.setItem(`currentSessionId_${storedUserId}`, newSession.id)
+          setMessages([buildWelcomeMessage()])
         }
 
         // Load all chat sessions for the user
         loadChatSessions(storedUserId)
       } catch (error) {
         console.error('Failed to initialize session:', error)
+        setMessages([buildWelcomeMessage()])
       }
     }
 
     initializeChat()
   }, [])
 
-  // Load chat history on mount
+  // Persist chat history (user-specific)
   useEffect(() => {
-    const savedHistory = localStorage.getItem('chatHistory')
-    if (savedHistory) {
-      try {
-        const parsed = JSON.parse(savedHistory) as Array<Omit<Message, 'timestamp'> & { timestamp: string }>
-        setMessages(parsed.map(item => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        })))
-        return
-      } catch {
-        localStorage.removeItem('chatHistory')
-      }
-    }
-
-    setMessages([buildWelcomeMessage()])
-  }, [])
-
-  // Persist chat history
-  useEffect(() => {
-    if (messages.length === 0) return
+    if (messages.length === 0 || !userId) return
 
     const serializable = messages.map(msg => ({
       ...msg,
       timestamp: msg.timestamp.toISOString()
     }))
-    localStorage.setItem('chatHistory', JSON.stringify(serializable))
-  }, [messages])
+    localStorage.setItem(`chatHistory_${userId}`, JSON.stringify(serializable))
+  }, [messages, userId])
 
   const parseNumericValue = (raw: string): number | null => {
     const cleaned = raw
@@ -585,7 +596,9 @@ export default function ChatPage() {
   }
 
   const handleClearChat = () => {
-    localStorage.removeItem('chatHistory')
+    if (userId) {
+      localStorage.removeItem(`chatHistory_${userId}`)
+    }
     setMessages([buildWelcomeMessage()])
     setShowSuggestions(true)
     setLastUploadedFile('')
@@ -603,7 +616,7 @@ export default function ChatPage() {
       // Create a new session
       const newSession = await createChatSession(userId, 'New Chat')
       setSessionId(newSession.id)
-      localStorage.setItem('currentSessionId', newSession.id)
+      localStorage.setItem(`currentSessionId_${userId}`, newSession.id)
 
       // Clear chat history and show welcome message
       setMessages([buildWelcomeMessage()])
@@ -633,7 +646,9 @@ export default function ChatPage() {
     try {
       // Set the active session
       setSessionId(sessionId)
-      localStorage.setItem('currentSessionId', sessionId)
+      if (userId) {
+        localStorage.setItem(`currentSessionId_${userId}`, sessionId)
+      }
 
       // Load messages for this session
       const apiMessages = await getChatMessages(sessionId)
