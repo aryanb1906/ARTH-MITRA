@@ -44,6 +44,10 @@ desktop.ini
 # Vector store - auto-regenerates from documents
 backend/chroma_db/
 
+# Database files - contain user data
+*.db
+backend/arth_mitra.db
+
 # Runtime user uploads
 backend/uploads/*
 !backend/uploads/.gitkeep
@@ -63,3 +67,8 @@ yarn-error.log*
 dist/
 build/
 *.egg-info/
+
+# Database files
+*.db
+backend/arth_mitra.db
+backend/*.db
