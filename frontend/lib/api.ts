@@ -198,6 +198,14 @@ export async function deleteChatSession(sessionId: string): Promise<{ status: st
   return data;
 }
 
+export async function updateChatSessionTitle(
+  sessionId: string,
+  title: string
+): Promise<{ status: string; session: ChatSession }> {
+  const { data } = await api.put(`/api/sessions/${sessionId}/title`, { title });
+  return data;
+}
+
 // ===========================
 // Saved Messages APIs
 // ===========================

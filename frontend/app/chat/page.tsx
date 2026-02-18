@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X } from 'lucide-react'
-import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile } from '@/lib/api'
+import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X, Pencil, Check } from 'lucide-react'
+import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile, updateChatSessionTitle } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
 import { UserMenu } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
@@ -155,6 +155,10 @@ export default function ChatPage() {
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [editedProfile, setEditedProfile] = useState(profile)
   const initializationDone = useRef(false)
+
+  // Session title editing
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [editingSessionTitle, setEditingSessionTitle] = useState('')
 
   // Single initialization on mount - handles ALL navigation logic
   useEffect(() => {
@@ -503,6 +507,9 @@ export default function ChatPage() {
   const handleSendMessage = async () => {
     if (!input.trim()) return
 
+    // Check if this is the first user message (for session title auto-update)
+    const isFirstUserMessage = messages.filter(m => m.type === 'user').length === 0
+
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
@@ -576,6 +583,10 @@ export default function ChatPage() {
     } finally {
       setIsLoading(false)
       setStreamingMessageId(null)
+      // Reload sessions if this was the first message (title auto-updated by backend)
+      if (isFirstUserMessage && userId) {
+        loadChatSessions(userId)
+      }
     }
   }
 
@@ -693,6 +704,29 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to delete session:', error)
       alert('Failed to delete chat. Please try again.')
+    }
+  }
+
+  const handleUpdateSessionTitle = async (targetSessionId: string, newTitle: string) => {
+    try {
+      if (!newTitle.trim()) {
+        setEditingSessionId(null)
+        return
+      }
+
+      // Update in backend
+      await updateChatSessionTitle(targetSessionId, newTitle.trim())
+
+      // Update local state
+      setChatSessions(prev => prev.map(s =>
+        s.id === targetSessionId ? { ...s, title: newTitle.trim() } : s
+      ))
+
+      setEditingSessionId(null)
+      setEditingSessionTitle('')
+    } catch (error) {
+      console.error('Failed to update session title:', error)
+      alert('Failed to rename chat. Please try again.')
     }
   }
 
@@ -1037,41 +1071,113 @@ export default function ChatPage() {
               <div className="space-y-2">
                 {chatSessions && chatSessions.length > 0 ? (
                   chatSessions.map((session: any) => (
-                    <button
+                    <div
                       key={session.id}
-                      onClick={() => handleLoadSession(session.id, session.title)}
-                      className={`w-full text-left p-3 rounded-lg text-xs transition-colors border group ${sessionId === session.id
+                      onClick={() => editingSessionId !== session.id && handleLoadSession(session.id, session.title)}
+                      className={`w-full text-left p-3 rounded-lg text-xs transition-colors border group cursor-pointer ${sessionId === session.id
                         ? 'border-primary/40 bg-primary/5 text-foreground'
                         : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground border-transparent hover:border-border/40'
                         }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="line-clamp-2 break-words">{session.title || 'New Chat'}</p>
-                          <p className="text-xs opacity-50 mt-1">
-                            {new Date(session.createdAt).toLocaleDateString('en-IN')}
-                          </p>
+                          {editingSessionId === session.id ? (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                value={editingSessionTitle}
+                                onChange={(e) => setEditingSessionTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleUpdateSessionTitle(session.id, editingSessionTitle)
+                                  } else if (e.key === 'Escape') {
+                                    setEditingSessionId(null)
+                                  }
+                                }}
+                                className="h-6 text-xs px-2"
+                                autoFocus
+                              />
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleUpdateSessionTitle(session.id, editingSessionTitle)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    handleUpdateSessionTitle(session.id, editingSessionTitle)
+                                  }
+                                }}
+                                className="p-1 rounded hover:bg-green-500/20 text-green-600 cursor-pointer"
+                                title="Save"
+                              >
+                                <Check className="w-3 h-3" />
+                              </div>
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setEditingSessionId(null)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    setEditingSessionId(null)
+                                  }
+                                }}
+                                className="p-1 rounded hover:bg-red-500/20 text-red-500 cursor-pointer"
+                                title="Cancel"
+                              >
+                                <X className="w-3 h-3" />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="line-clamp-2 break-words">{session.title || 'New Chat'}</p>
+                              <p className="text-xs opacity-50 mt-1">
+                                {new Date(session.createdAt).toLocaleDateString('en-IN')}
+                              </p>
+                            </>
+                          )}
                         </div>
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteSession(session.id)
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.stopPropagation()
-                              handleDeleteSession(session.id)
-                            }
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 text-red-500 cursor-pointer"
-                          title="Delete chat"
-                        >
-                          <X className="w-3 h-3" />
-                        </div>
+                        {editingSessionId !== session.id && (
+                          <div className="flex items-center gap-1">
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingSessionId(session.id)
+                                setEditingSessionTitle(session.title || 'New Chat')
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.stopPropagation()
+                                  setEditingSessionId(session.id)
+                                  setEditingSessionTitle(session.title || 'New Chat')
+                                }
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-foreground cursor-pointer"
+                              title="Rename chat"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </div>
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteSession(session.id)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.stopPropagation()
+                                  handleDeleteSession(session.id)
+                                }
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 text-red-500 cursor-pointer"
+                              title="Delete chat"
+                            >
+                              <X className="w-3 h-3" />
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </button>
+                    </div>
                   ))
                 ) : (
                   <p className="text-xs text-muted-foreground/60 py-2">No chat history yet</p>
