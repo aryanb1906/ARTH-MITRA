@@ -1333,7 +1333,7 @@ We appreciate all contributors who have helped make Arth-Mitra better!
 - ⏳ Backend API optimization
 - ⏳ Enhanced RAG pipeline with multi-source retrieval
 - ⏳ User authentication & registration
-- ⏳ Advanced tax calculator (old vs new regime)
+- ✅ Advanced tax calculator (old vs new regime)
 - ⏳ Scheme eligibility checker with recommendations
 - ✅ Query history with export functionality
 - ✅ Streaming chat responses with token-by-token display
