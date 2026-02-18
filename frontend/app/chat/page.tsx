@@ -1140,16 +1140,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="p-4 border-t border-border/40 space-y-2">
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-              <AlertCircle className="w-4 h-4" />
-              Help & Support
-            </Button>
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-              <MoreVertical className="w-4 h-4" />
-              Settings
-            </Button>
-          </div>
+
         </div>
       )}
 
