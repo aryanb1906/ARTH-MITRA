@@ -11,7 +11,9 @@ const _geistMono = Geist_Mono({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Arth-Mitra - Your AI Financial Guide',
   description: 'Simplify Indian financial schemes and tax laws with AI-powered conversational guidance',
-  generator: 'v0.app',
+  icons: {
+    icon: "/favicon2.ico",
+  },
 }
 
 export default function RootLayout({
