@@ -704,12 +704,7 @@ Here is the gold price data for **{requested_date_readable}**:
 *Note: Prices are in USD per troy ounce.*
 
 If you have any questions about investing in gold (like Sovereign Gold Bonds, Gold ETFs, or physical gold) or their tax implications, feel free to ask!"""
-            
-            return {
-                "response": response,
-                "sources": ["gold_data.csv"]
-            }
-        
+
         # Try to get nearest price if exact not found
         nearest_data, explanation = gold_lookup.get_nearest_price(parsed_date)
         
@@ -732,12 +727,7 @@ I don't have gold price data for **{requested_date_readable}** (this may be a ho
 *Note: Prices are in USD per troy ounce.*
 
 If you need information about gold investment options available in India, such as Sovereign Gold Bonds (SGB), Gold ETFs, or Digital Gold, I'd be happy to help!"""
-            
-            return {
-                "response": response,
-                "sources": ["gold_data.csv"]
-            }
-        
+
         # No data available at all
         date_range = gold_lookup.get_date_range()
         range_info = ""
@@ -750,11 +740,6 @@ I don't have gold price data for **{requested_date_readable}**.{range_info}
 
 If you have questions about current gold investment options in India or tax implications of gold investments, I would be happy to assist!"""
         
-        return {
-            "response": response,
-            "sources": ["gold_data.csv"]
-        }
-    
     def get_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None) -> Dict:
         """Get AI response for a user query with caching"""
         if not self._initialized:

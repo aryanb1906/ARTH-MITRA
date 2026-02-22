@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cpu, Github, Mail, Phone, CheckCircle2, TrendingUp, BarChart3, Lightbulb, Award, Calculator } from 'lucide-react'
-import { useEffect, useState } from "react"
+import { useEffect, useState, type MouseEvent } from "react"
 import { AuthButtons, MobileAuthButtons } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
 import { Logo } from '@/components/logo'
@@ -34,6 +34,14 @@ export default function Page() {
     router.push('/profile-setup')
   }
 
+  const handlePointerMove = (event: MouseEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = event.clientX - rect.left
+    const y = event.clientY - rect.top
+    event.currentTarget.style.setProperty('--mx', `${x}px`)
+    event.currentTarget.style.setProperty('--my', `${y}px`)
+  }
+
   useEffect(() => {
     fetch("http://localhost:8000/ping")
       .then(res => res.json())
@@ -41,16 +49,18 @@ export default function Page() {
       .catch(() => setMsg("Backend not connected"))
   }, [])
   return (
-    <div className="min-h-screen bg-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-white via-blue-50/30 to-emerald-50/20">
+      <div className="pointer-events-none absolute -top-24 left-1/4 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 -right-20 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border/40">
+      <nav className="sticky top-0 z-50 bg-white/75 backdrop-blur-xl border-b border-border/40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
           <Logo size="md" showText={true} href="/" />
           <div className="hidden md:flex items-center gap-8">
-            <a href="#how-it-works" className="text-sm text-foreground hover:text-primary transition-colors">How It Works</a>
-            <a href="#features" className="text-sm text-foreground hover:text-primary transition-colors">Features</a>
-            <a href="#testimonials" className="text-sm text-foreground hover:text-primary transition-colors">Use Cases</a>
-            <Link href="/tax-calculator" className="text-sm text-foreground hover:text-primary transition-colors font-medium bg-primary/10 px-3 py-1 rounded-lg hover:bg-primary/20">
+            <a href="#how-it-works" className="text-sm text-foreground hover:text-primary transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0">How It Works</a>
+            <a href="#features" className="text-sm text-foreground hover:text-primary transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0">Features</a>
+            <a href="#testimonials" className="text-sm text-foreground hover:text-primary transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0">Use Cases</a>
+            <Link href="/tax-calculator" className="text-sm text-foreground hover:text-primary transition-all duration-200 hover:-translate-y-0.5 active:scale-95 font-medium bg-primary/10 px-3 py-1 rounded-lg hover:bg-primary/20">
               Tax Calculator
             </Link>
             <AuthButtons />
@@ -62,18 +72,18 @@ export default function Page() {
       </nav>
 
       {msg && (
-        <p className="mt-2 text-sm text-primary font-medium">
+        <p className="mt-2 mx-auto w-fit text-sm text-primary font-medium rounded-full border border-primary/20 bg-primary/5 px-4 py-1">
           {msg}
         </p>
       )}
 
       {/* Hero Section */}
       <section className="relative px-4 md:px-6 py-2 md:py-4 max-w-7xl mx-auto overflow-hidden">
-        <div className="absolute top-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-10 w-72 h-72 bg-accent/5 rounded-full blur-3xl" />
+        <div className="absolute top-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-10 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
 
         <div className="relative text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-6 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-6 backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:shadow-primary/20 hover:-translate-y-0.5">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <p className="text-sm text-primary font-semibold">AI-Powered Financial Guidance</p>
           </div>
@@ -87,11 +97,11 @@ export default function Page() {
           </p>
 
           <div className="flex flex-col md:flex-row gap-3 justify-center mb-10">
-            <Button className="w-full md:w-auto" onClick={handleGetStarted}>
+            <Button className="w-full md:w-auto transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25 active:scale-95" onClick={handleGetStarted}>
               Try Arth-Mitra
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <Button className="w-full md:w-auto bg-gray-500 border border-border hover:bg-gray-600">
+            <Button className="w-full md:w-auto bg-slate-600 border border-border hover:bg-slate-700 transition-all duration-200 hover:-translate-y-0.5 active:scale-95">
               Watch Demo Video
               {/*Remember to add a demo link*/}
             </Button>
@@ -152,25 +162,32 @@ export default function Page() {
               }
             ].map((step, i) => (
               <div key={i} className="flex flex-col items-center relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-4 border border-primary/20">
-                  <step.icon className="w-8 h-8 text-primary" />
+                <div
+                  onMouseMove={handlePointerMove}
+                  className="group relative w-full rounded-2xl border border-primary/20 bg-white/70 p-4 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10 active:scale-[0.99]"
+                >
+                  <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(59,130,246,0.16), transparent 60%)' }} />
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/25 to-primary/10 flex items-center justify-center mb-4 border border-primary/20 mx-auto">
+                    <step.icon className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="font-bold text-foreground text-sm md:text-base mb-1 text-center">{step.title}</h3>
+                  <p className="text-xs text-muted-foreground text-center mb-2">{step.desc}</p>
+                  <p className="text-xs text-muted-foreground/70 text-center italic">{step.details}</p>
                 </div>
-                <h3 className="font-bold text-foreground text-sm md:text-base mb-1">{step.title}</h3>
-                <p className="text-xs text-muted-foreground text-center mb-2">{step.desc}</p>
-                <p className="text-xs text-muted-foreground/60 text-center italic">{step.details}</p>
                 {i < 4 && <div className="hidden md:block absolute right-0 top-8 text-border/40 text-2xl">→</div>}
               </div>
             ))}
           </div>
 
           {/* Trust Indicators */}
-          <div className="grid md:grid-cols-3 gap-6 bg-white rounded-2xl p-8 border border-border/40">
+          <div className="grid md:grid-cols-3 gap-6 bg-white/85 rounded-2xl p-8 border border-border/40 shadow-sm backdrop-blur-sm">
             {[
               { icon: Shield, title: 'Bank-Grade Security', desc: 'End-to-end encryption & HTTPS' },
               { icon: CheckCircle2, title: 'Government Data', desc: 'Only official sources & guidelines' },
               { icon: Award, title: 'Expert Verified', desc: 'Reviewed by tax & finance professionals' }
             ].map((indicator, i) => (
-              <div key={i} className="flex gap-4">
+              <div key={i} onMouseMove={handlePointerMove} className="group relative overflow-hidden rounded-xl p-3 -m-3 flex gap-4 transition-all duration-200 hover:bg-primary/5 hover:shadow-sm">
+                <div className="pointer-events-none absolute inset-0 rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'radial-gradient(180px circle at var(--mx, 50%) var(--my, 50%), rgba(34,197,94,0.12), transparent 60%)' }} />
                 <indicator.icon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
                 <div>
                   <h4 className="font-semibold text-foreground mb-1">{indicator.title}</h4>
@@ -229,7 +246,7 @@ export default function Page() {
               icon: Database,
               title: 'Real-Time Updates',
               desc: 'Latest tax law changes, scheme updates, and government policy changes reflected instantly',
-              color: 'from-purple-400/20 to-purple-400/5'
+              color: 'from-cyan-400/20 to-cyan-400/5'
             },
             {
               icon: Calculator,
@@ -242,7 +259,11 @@ export default function Page() {
             <div key={i}>
               {feature.link ? (
                 <Link href={feature.link}>
-                  <Card className="p-8 hover:shadow-xl transition-all duration-300 border border-border/40 group cursor-pointer h-full">
+                  <Card
+                    onMouseMove={handlePointerMove}
+                    className="p-8 hover:shadow-xl transition-all duration-300 border border-border/40 group cursor-pointer h-full relative overflow-hidden hover:-translate-y-1 active:scale-[0.99] bg-white/85 backdrop-blur-sm"
+                  >
+                    <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), rgba(59,130,246,0.14), transparent 62%)' }} />
                     <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                       <feature.icon className="w-7 h-7 text-primary" />
                     </div>
@@ -251,7 +272,11 @@ export default function Page() {
                   </Card>
                 </Link>
               ) : (
-                <Card className="p-8 hover:shadow-xl transition-all duration-300 border border-border/40 group cursor-pointer h-full">
+                <Card
+                  onMouseMove={handlePointerMove}
+                  className="p-8 hover:shadow-xl transition-all duration-300 border border-border/40 group cursor-pointer h-full relative overflow-hidden hover:-translate-y-1 active:scale-[0.99] bg-white/85 backdrop-blur-sm"
+                >
+                  <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), rgba(34,197,94,0.14), transparent 62%)' }} />
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                     <feature.icon className="w-7 h-7 text-primary" />
                   </div>
@@ -265,7 +290,7 @@ export default function Page() {
       </section>
 
       {/* Real Use Cases / Chat Examples */}
-      <section id="testimonials" className="px-4 md:px-6 py-12 bg-gradient-to-b from-blue-50/50 to-white border-t border-b border-border/40">
+      <section id="testimonials" className="px-4 md:px-6 py-12 bg-gradient-to-b from-blue-50/60 via-emerald-50/20 to-white border-t border-b border-border/40">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-3 backdrop-blur-sm">
@@ -278,7 +303,11 @@ export default function Page() {
 
           <div className="grid md:grid-cols-2 gap-8">
             {/* Example 1 - Tax Saving */}
-            <Card className="p-8 bg-white border border-border/40 overflow-hidden group hover:shadow-lg transition-shadow">
+            <Card
+              onMouseMove={handlePointerMove}
+              className="p-8 bg-white/85 border border-border/40 overflow-hidden group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 active:scale-[0.99] relative backdrop-blur-sm"
+            >
+              <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(59,130,246,0.12), transparent 65%)' }} />
               <div className="mb-6">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 mb-4">
                   <span className="text-xs font-semibold text-primary">Salaried Professional</span>
@@ -314,7 +343,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200 transition-all duration-200 hover:shadow-sm">
                   <p className="text-sm font-semibold text-green-700 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4" />
                     Potential Tax Saving: Up to ₹2-3L per year!
@@ -324,7 +353,11 @@ export default function Page() {
             </Card>
 
             {/* Example 2 - Pension Planning */}
-            <Card className="p-8 bg-white border border-border/40 overflow-hidden group hover:shadow-lg transition-shadow">
+            <Card
+              onMouseMove={handlePointerMove}
+              className="p-8 bg-white/85 border border-border/40 overflow-hidden group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 active:scale-[0.99] relative backdrop-blur-sm"
+            >
+              <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(34,197,94,0.14), transparent 65%)' }} />
               <div className="mb-6">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/30 mb-4">
                   <span className="text-xs font-semibold text-accent">Senior Citizen Planning</span>
@@ -355,7 +388,7 @@ export default function Page() {
                     desc: 'Tax benefits + flexibility'
                   }
                 ].map((scheme, i) => (
-                  <Card key={i} className="p-3 bg-gradient-to-r from-blue-50 to-blue-50 border border-blue-100 hover:shadow-md transition-shadow">
+                  <Card key={i} className="p-3 bg-gradient-to-r from-blue-50 to-emerald-50/40 border border-blue-100 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
                     <p className="font-semibold text-sm text-foreground">{scheme.name}</p>
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-muted-foreground">{scheme.desc}</p>
@@ -372,7 +405,7 @@ export default function Page() {
 
 
       {/* CTA Section */}
-      <section className="px-4 md:px-6 py-12 bg-gradient-to-r from-primary/10 to-accent/10 rounded-3xl max-w-7xl mx-auto mb-8">
+      <section className="px-4 md:px-6 py-12 bg-gradient-to-r from-primary/15 via-blue-100/50 to-accent/15 rounded-3xl max-w-7xl mx-auto mb-8 border border-primary/15 shadow-sm">
         <div className="text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Ready to Take Control?</h2>
           <p className="text-base text-muted-foreground mb-8 max-w-2xl mx-auto">
@@ -380,12 +413,12 @@ export default function Page() {
           </p>
           <div className="flex flex-col md:flex-row gap-3 justify-center">
             <Link href="/chat">
-              <Button>
+              <Button className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25 active:scale-95">
                 Try Arth-Mitra
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button className="bg-white border border-border">
+            <Button className="bg-white border border-border transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 active:scale-95">
               Schedule a Demo
             </Button>
           </div>
@@ -406,7 +439,12 @@ export default function Page() {
             { q: 'Can I use this for GST/business taxes?', a: 'Currently, Arth-Mitra focuses on personal income tax and investment schemes. We\'re working on business tax features for the future.' },
             { q: 'What if I have complex financial situations?', a: 'For complex cases, our Professional and Premium plans include access to expert consultations with experienced tax professionals.' }
           ].map((faq, i) => (
-            <Card key={i} className="p-6 border border-border/40 hover:shadow-md transition-shadow">
+            <Card
+              key={i}
+              onMouseMove={handlePointerMove}
+              className="group relative overflow-hidden p-6 border border-border/40 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.995] bg-white/85 backdrop-blur-sm"
+            >
+              <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(14,165,233,0.12), transparent 65%)' }} />
               <h3 className="font-semibold text-foreground mb-2">{faq.q}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
             </Card>
@@ -431,20 +469,16 @@ export default function Page() {
             <div>
               <h4 className="font-bold text-foreground mb-4 text-sm">Product</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">How It Works</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Features</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Pricing</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Blog</a></li>
+                <li><a href="https://github.com/aryanb1906/ARTH-MITRA?tab=readme-ov-file#-arth-mitra---ai-powered-financial-assistant-for-india" className="text-sm text-muted-foreground hover:text-primary transition-colors">How It Works</a></li>
+                <li><a href="https://github.com/aryanb1906/ARTH-MITRA?tab=readme-ov-file#-arth-mitra---ai-powered-financial-assistant-for-india" className="text-sm text-muted-foreground hover:text-primary transition-colors">Features</a></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-bold text-foreground mb-4 text-sm">Company</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Careers</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Press</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact</a></li>
+                <li><a href="https://github.com/aryanb1906/ARTH-MITRA?tab=readme-ov-file#-arth-mitra---ai-powered-financial-assistant-for-india" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
+                <li><a href="https://www.linkedin.com/in/aryan-bhargava/" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact</a></li>
               </ul>
             </div>
 
@@ -461,10 +495,8 @@ export default function Page() {
             <div>
               <h4 className="font-bold text-foreground mb-4 text-sm">Connect</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Github className="w-4 h-4" /> GitHub</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Mail className="w-4 h-4" /> Email</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Phone className="w-4 h-4" /> Phone</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Twitter</a></li>
+                <li><a href="https://github.com/aryanb1906/ARTH-MITRA" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Github className="w-4 h-4" /> GitHub</a></li>
+                <li><a href="mailto:2305946@kiit.ac.in" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Mail className="w-4 h-4" /> Email</a></li>
               </ul>
             </div>
           </div>

@@ -81,6 +81,9 @@ class ChangePassword(BaseModel):
 class ChatSessionCreate(BaseModel):
     title: Optional[str] = "New Chat"
 
+class ChatSessionUpdate(BaseModel):
+    title: str
+
 class ChatSessionResponse(BaseModel):
     id: str
     title: str
@@ -539,6 +542,20 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
+
+
+@app.put("/api/sessions/{session_id}/title")
+def update_session_title(session_id: str, session_data: ChatSessionUpdate, db: Session = Depends(get_db)):
+    """Update the title of a chat session"""
+    try:
+        session = crud.update_chat_session_title(db, session_id, session_data.title)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return {"status": "success", "session": session.to_dict()}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update session title: {str(e)}")
 
 
 @app.get("/api/users/{user_id}/documents")

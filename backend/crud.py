@@ -222,6 +222,18 @@ def delete_chat_session(db: Session, session_id: str) -> bool:
     return False
 
 
+def update_chat_session_title(db: Session, session_id: str, title: str) -> Optional[ChatSession]:
+    """Update the title of a chat session"""
+    session = get_chat_session(db, session_id)
+    if session:
+        session.title = title
+        session.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(session)
+        return session
+    return None
+
+
 # ============= DOCUMENT OPERATIONS =============
 
 def create_document(

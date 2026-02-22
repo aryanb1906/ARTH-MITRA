@@ -216,7 +216,7 @@ graph TB
 ┌────────────────────────────────────────────────────────────────────┐
 │                  RAG PIPELINE LAYER                               │
 │                                                                   │
-│  LangChain ── Gemini 2.5-Flash / GPT-4o-mini (LLM)               │
+│  LangChain ──  OpenRouter (LLM)               │
 │       │                                                            │
 │       └── HuggingFace Embeddings (Semantic Understanding)         │
 │                                                                   │
@@ -1291,6 +1291,7 @@ in the Software without restriction...
 | 3 | **Naman** | [@nmncodes](https://github.com/nmncodes) | Contributor |
 | 4 | **Poushali** | [@patrapoushali](https://github.com/patrapoushali) | Contributor |
 | 5 | **Aayushi** | [@AaS2703](https://github.com/AaS2703) | Contributor |
+| 6 | **Rohan** | [@Rohan01000](https://github.com/Rohan01000) | Contributor |
 ### 🚀 Community Contributors
 
 We appreciate all contributors who have helped make Arth-Mitra better!
@@ -1333,7 +1334,7 @@ We appreciate all contributors who have helped make Arth-Mitra better!
 - ⏳ Backend API optimization
 - ⏳ Enhanced RAG pipeline with multi-source retrieval
 - ⏳ User authentication & registration
-- ⏳ Advanced tax calculator (old vs new regime)
+- ✅ Advanced tax calculator (old vs new regime)
 - ⏳ Scheme eligibility checker with recommendations
 - ✅ Query history with export functionality
 - ✅ Streaming chat responses with token-by-token display
