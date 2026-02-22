@@ -433,8 +433,6 @@ export default function Page() {
               <ul className="space-y-2">
                 <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">How It Works</a></li>
                 <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Features</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Pricing</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Blog</a></li>
               </ul>
             </div>
 
