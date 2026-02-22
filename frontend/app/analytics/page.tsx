@@ -114,14 +114,16 @@ export default function AnalyticsPage() {
     ]
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50">
+            <div className="pointer-events-none absolute -top-28 -left-20 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-28 -right-20 h-72 w-72 rounded-full bg-emerald-200/30 blur-3xl" />
             {/* Header */}
-            <div className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+            <div className="border-b border-white/60 bg-white/75 backdrop-blur-md sticky top-0 z-10 shadow-sm">
                 <div className="container mx-auto px-4 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <Link href="/chat">
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" className="transition-transform duration-200 hover:scale-105 active:scale-95">
                                     <ArrowLeft className="w-5 h-5" />
                                 </Button>
                             </Link>
@@ -138,13 +140,14 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Content */}
-            <div className="container mx-auto px-4 py-8">
+            <div className="relative container mx-auto px-4 py-8">
                 {/* Time Period Filter */}
-                <div className="mb-6 flex gap-2">
+                <div className="mb-6 inline-flex gap-2 rounded-full border border-white/70 bg-white/70 p-1.5 shadow-sm backdrop-blur-sm">
                     <Button
                         variant={days === 7 ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setDays(7)}
+                        className="rounded-full transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
                     >
                         Last 7 Days
                     </Button>
@@ -152,6 +155,7 @@ export default function AnalyticsPage() {
                         variant={days === 30 ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setDays(30)}
+                        className="rounded-full transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
                     >
                         Last 30 Days
                     </Button>
@@ -159,6 +163,7 @@ export default function AnalyticsPage() {
                         variant={days === 90 ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setDays(90)}
+                        className="rounded-full transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
                     >
                         Last 90 Days
                     </Button>
@@ -167,14 +172,19 @@ export default function AnalyticsPage() {
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {summaryCards.map((card) => (
-                        <Card key={card.title} className="p-6 relative group overflow-hidden">
+                        <Card
+                            key={card.title}
+                            tabIndex={0}
+                            className="p-6 relative group overflow-hidden border border-white/70 bg-white/75 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        >
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-slate-300/70 to-transparent transition-all duration-300 group-hover:via-blue-400/70 group-focus-within:via-blue-400/70" />
                             <div className="flex items-center justify-between mb-2">
                                 <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
                                 {card.icon}
                             </div>
                             <p className="text-3xl font-bold text-foreground">{card.value}</p>
                             <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
-                            <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-md bg-slate-900/95 px-3 py-2 text-[11px] leading-snug text-white opacity-0 translate-y-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">
+                            <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-md bg-slate-900/95 px-3 py-2 text-[11px] leading-snug text-white opacity-0 translate-y-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0">
                                 {card.insight}
                             </div>
                         </Card>
@@ -182,7 +192,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Query Distribution Chart */}
-                <Card className="p-6 mb-8">
+                <Card className="p-6 mb-8 border border-white/70 bg-white/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg">
                     <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                         <TrendingUp className="w-5 h-5" />
                         Query Distribution Over Time
@@ -197,6 +207,12 @@ export default function AnalyticsPage() {
                             />
                             <YAxis fontSize={12} />
                             <Tooltip
+                                contentStyle={{
+                                    borderRadius: '12px',
+                                    border: '1px solid rgba(148, 163, 184, 0.25)',
+                                    boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+                                    backdropFilter: 'blur(6px)'
+                                }}
                                 labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', {
                                     month: 'long',
                                     day: 'numeric',
@@ -211,13 +227,14 @@ export default function AnalyticsPage() {
                                 strokeWidth={2}
                                 name="Queries"
                                 dot={{ fill: '#3b82f6' }}
+                                activeDot={{ r: 6, fill: '#1d4ed8', stroke: '#dbeafe', strokeWidth: 2 }}
                             />
                         </LineChart>
                     </ResponsiveContainer>
                 </Card>
                 {/* Top Events */}
                 {summary?.topEvents && summary.topEvents.length > 0 && (
-                    <Card className="p-6">
+                    <Card className="p-6 border border-white/70 bg-white/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg">
                         <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                             <Activity className="w-5 h-5" />
                             Top Events
