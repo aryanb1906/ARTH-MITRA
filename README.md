@@ -216,7 +216,7 @@ graph TB
 ┌────────────────────────────────────────────────────────────────────┐
 │                  RAG PIPELINE LAYER                               │
 │                                                                   │
-│  LangChain ── Gemini 2.5-Flash / GPT-4o-mini (LLM)               │
+│  LangChain ──  OpenRouter (LLM)               │
 │       │                                                            │
 │       └── HuggingFace Embeddings (Semantic Understanding)         │
 │                                                                   │
