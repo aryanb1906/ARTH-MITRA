@@ -46,16 +46,17 @@ export function Logo({
     const logoContent = (
         <div className="flex items-center gap-3">
             {/* Logo Icon */}
-            <div className={`${sizes.container} rounded-xl bg-gradient-to-br from-blue-600 via-primary to-purple-600 flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow`}>
-                <Wallet className={`${sizes.icon} text-white`} strokeWidth={2.5} />
+            <div className="flex items-center">
+                <img
+                    src="/finallogo.png"
+                    alt="Arth-Mitra Logo"
+                    className="h-12 w-auto"
+                />
             </div>
 
             {/* Text Content */}
             {showText && (
                 <div className="flex flex-col">
-                    <span className={`font-bold ${sizes.text} bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent`}>
-                        Arth-Mitra
-                    </span>
                     {showTagline && (
                         <span className={`${sizes.tagline} text-muted-foreground font-medium`}>
                             Your Financial Companion

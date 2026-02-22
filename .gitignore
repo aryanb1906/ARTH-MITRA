@@ -8,6 +8,9 @@
 .env.*.local
 *.local
 
+__pycache__/
+*.pyc
+
 # ----- Python (Backend) -----
 __pycache__/
 *.py[cod]

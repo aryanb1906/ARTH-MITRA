@@ -1309,7 +1309,7 @@ export default function ChatPage() {
           {/* Main Chat Area */}
           <div className="flex h-full flex-col overflow-hidden">
             {/* Header */}
-            <div className="border-b border-border/40 bg-white p-4 md:p-6 flex items-center justify-between shadow-sm">
+            <div className="border-b border-border/40 bg-white p-1 md:p-2 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
                 <Link href="/" className="lg:hidden">
                   <Button variant="ghost" size="icon" className="hover:bg-primary/10">
@@ -1318,7 +1318,7 @@ export default function ChatPage() {
                 </Link>
                 <Logo size="md" showText={false} href="/" />
                 <div>
-                  <h1 className="text-base font-bold text-foreground">Arth-Mitra Chat</h1>
+                  <h2 className="text-base font-bold text-foreground">Arth-Mitra Chat</h2>
                   <p className="text-xs text-muted-foreground">AI Financial Assistant</p>
                 </div>
               </div>
