@@ -431,18 +431,16 @@ export default function Page() {
             <div>
               <h4 className="font-bold text-foreground mb-4 text-sm">Product</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">How It Works</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Features</a></li>
+                <li><a href="https://github.com/aryanb1906/ARTH-MITRA?tab=readme-ov-file#-arth-mitra---ai-powered-financial-assistant-for-india" className="text-sm text-muted-foreground hover:text-primary transition-colors">How It Works</a></li>
+                <li><a href="https://github.com/aryanb1906/ARTH-MITRA?tab=readme-ov-file#-arth-mitra---ai-powered-financial-assistant-for-india" className="text-sm text-muted-foreground hover:text-primary transition-colors">Features</a></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-bold text-foreground mb-4 text-sm">Company</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Careers</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Press</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact</a></li>
+                <li><a href="https://github.com/aryanb1906/ARTH-MITRA?tab=readme-ov-file#-arth-mitra---ai-powered-financial-assistant-for-india" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
+                <li><a href="https://www.linkedin.com/in/aryan-bhargava/" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact</a></li>
               </ul>
             </div>
 
@@ -459,10 +457,8 @@ export default function Page() {
             <div>
               <h4 className="font-bold text-foreground mb-4 text-sm">Connect</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Github className="w-4 h-4" /> GitHub</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Mail className="w-4 h-4" /> Email</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Phone className="w-4 h-4" /> Phone</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Twitter</a></li>
+                <li><a href="https://github.com/aryanb1906/ARTH-MITRA" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Github className="w-4 h-4" /> GitHub</a></li>
+                <li><a href="2305912@kiit.ac.in" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Mail className="w-4 h-4" /> Email</a></li>
               </ul>
             </div>
           </div>
