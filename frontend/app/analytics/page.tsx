@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, TrendingUp, MessageSquare, Upload, Zap, Clock, Activity } from 'lucide-react'
 import { getAnalyticsSummary, getQueryDistribution } from '@/lib/api'
 import { UserMenu } from '@/components/user-menu'
-import { Logo } from '@/components/logo'
 import {
     LineChart,
     Line,
@@ -79,6 +78,41 @@ export default function AnalyticsPage() {
         )
     }
 
+    const summaryCards = [
+        {
+            title: 'Total Queries',
+            value: `${summary?.totalQueries || 0}`,
+            subtitle: summary?.period || `Last ${days} days`,
+            insight: `${summary?.totalQueries || 0} questions were asked in this time window.`,
+            icon: <MessageSquare className="w-5 h-5 text-primary" />
+        },
+        {
+            title: 'Documents Uploaded',
+            value: `${summary?.totalUploads || 0}`,
+            subtitle: summary?.period || `Last ${days} days`,
+            insight: `${summary?.totalUploads || 0} files were added for analysis.`,
+            icon: <Upload className="w-5 h-5 text-blue-600" />
+        },
+        {
+            title: 'Avg Response Time',
+            value: summary?.avgResponseTime ? `${summary.avgResponseTime.toFixed(2)}s` : 'N/A',
+            subtitle: 'Average across all queries',
+            insight: summary?.avgResponseTime
+                ? `Typical reply time is ${summary.avgResponseTime.toFixed(2)} seconds.`
+                : 'No response timing data available yet.',
+            icon: <Clock className="w-5 h-5 text-green-600" />
+        },
+        {
+            title: 'Cache Hit Rate',
+            value: summary?.cacheHitRate ? `${(summary.cacheHitRate * 100).toFixed(1)}%` : '0%',
+            subtitle: 'Faster responses from cache',
+            insight: summary?.cacheHitRate
+                ? `${(summary.cacheHitRate * 100).toFixed(1)}% of requests were served from cache.`
+                : 'Cache has not served any requests yet.',
+            icon: <Zap className="w-5 h-5 text-yellow-600" />
+        }
+    ]
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
             {/* Header */}
@@ -132,53 +166,19 @@ export default function AnalyticsPage() {
 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <Card className="p-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm font-medium text-muted-foreground">Total Queries</h3>
-                            <MessageSquare className="w-5 h-5 text-primary" />
-                        </div>
-                        <p className="text-3xl font-bold text-foreground">{summary?.totalQueries || 0}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            {summary?.period || `Last ${days} days`}
-                        </p>
-                    </Card>
-
-                    <Card className="p-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm font-medium text-muted-foreground">Documents Uploaded</h3>
-                            <Upload className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <p className="text-3xl font-bold text-foreground">{summary?.totalUploads || 0}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            {summary?.period || `Last ${days} days`}
-                        </p>
-                    </Card>
-
-                    <Card className="p-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm font-medium text-muted-foreground">Avg Response Time</h3>
-                            <Clock className="w-5 h-5 text-green-600" />
-                        </div>
-                        <p className="text-3xl font-bold text-foreground">
-                            {summary?.avgResponseTime ? `${summary.avgResponseTime.toFixed(2)}s` : 'N/A'}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Average across all queries
-                        </p>
-                    </Card>
-
-                    <Card className="p-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm font-medium text-muted-foreground">Cache Hit Rate</h3>
-                            <Zap className="w-5 h-5 text-yellow-600" />
-                        </div>
-                        <p className="text-3xl font-bold text-foreground">
-                            {summary?.cacheHitRate ? `${(summary.cacheHitRate * 100).toFixed(1)}%` : '0%'}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Faster responses from cache
-                        </p>
-                    </Card>
+                    {summaryCards.map((card) => (
+                        <Card key={card.title} className="p-6 relative group overflow-hidden">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
+                                {card.icon}
+                            </div>
+                            <p className="text-3xl font-bold text-foreground">{card.value}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
+                            <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-md bg-slate-900/95 px-3 py-2 text-[11px] leading-snug text-white opacity-0 translate-y-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">
+                                {card.insight}
+                            </div>
+                        </Card>
+                    ))}
                 </div>
 
                 {/* Query Distribution Chart */}
@@ -215,7 +215,6 @@ export default function AnalyticsPage() {
                         </LineChart>
                     </ResponsiveContainer>
                 </Card>
-
                 {/* Top Events */}
                 {summary?.topEvents && summary.topEvents.length > 0 && (
                     <Card className="p-6">
