@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X, Pencil, Check } from 'lucide-react'
+import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X, Pencil, Check, Copy, Shuffle } from 'lucide-react'
 import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile, updateChatSessionTitle } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
 import { UserMenu } from '@/components/user-menu'
@@ -146,6 +146,8 @@ export default function ChatPage() {
 
   const [showNewChat, setShowNewChat] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
+  const [visibleSuggestions, setVisibleSuggestions] = useState(suggestedQueries)
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
 
   // Sidebar collapse states
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true)
@@ -606,6 +608,56 @@ export default function ChatPage() {
     }, 0)
   }
 
+  const shuffleSuggestions = () => {
+    setVisibleSuggestions(prev => [...prev].sort(() => Math.random() - 0.5))
+  }
+
+  const handleCopyMessage = async (messageId: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedMessageId(messageId)
+      setTimeout(() => setCopiedMessageId(null), 1600)
+    } catch {
+      const textArea = document.createElement('textarea')
+      textArea.value = content
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopiedMessageId(messageId)
+      setTimeout(() => setCopiedMessageId(null), 1600)
+    }
+  }
+
+  const handleCreateChartFromMessage = (message: Message) => {
+    const inferred = inferChartData(message.content)
+    if (inferred.data.length === 0) return
+
+    const snapshot: ChartSnapshot = {
+      id: message.id,
+      title: getChartTitle(message.content, message.timestamp),
+      data: inferred.data,
+      type: inferred.type,
+      unit: inferred.unit,
+    }
+
+    setChartMode('response')
+    setChartSnapshots(prev => {
+      const withoutCurrent = prev.filter(item => item.id !== snapshot.id)
+      return [snapshot, ...withoutCurrent].slice(0, 6)
+    })
+    setActiveChartId(snapshot.id)
+    setChartData(snapshot.data)
+    setChartType(snapshot.type)
+    setChartUnit(snapshot.unit)
+    if (!isRightSidebarOpen) setIsRightSidebarOpen(true)
+  }
+
+  const handleRegenerateFromMessage = (message: Message) => {
+    setInput(`Please regenerate this response with clearer steps and concise action points:\n\n${message.content.slice(0, 600)}`)
+    inputFieldRef.current?.focus()
+  }
+
   const handleClearChat = () => {
     if (userId) {
       localStorage.removeItem(`chatHistory_${userId}`)
@@ -615,6 +667,7 @@ export default function ChatPage() {
     setLastUploadedFile('')
     setStreamingMessageId(null)
     setIsLoading(false)
+    setVisibleSuggestions([...suggestedQueries])
   }
 
   const handleNewChat = async () => {
@@ -632,6 +685,7 @@ export default function ChatPage() {
       // Clear chat history and show welcome message
       setMessages([buildWelcomeMessage()])
       setShowSuggestions(true)
+      setVisibleSuggestions([...suggestedQueries])
       setLastUploadedFile('')
       setStreamingMessageId(null)
       setIsLoading(false)
@@ -1270,8 +1324,8 @@ export default function ChatPage() {
               </div>
               <div className="hidden md:flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">{profile.income}</p>
-                  <p className="text-xs text-muted-foreground">Age {profile.age}</p>
+                  <p className="text-sm font-semibold text-foreground">Income- Rs.{profile.income}</p>
+                  <p className="text-xs text-muted-foreground">Age- {profile.age} years</p>
                 </div>
                 <Button variant="ghost" size="icon" className="hover:bg-primary/10">
                   <RefreshCw className="w-4 h-4" />
