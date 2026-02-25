@@ -122,7 +122,7 @@ async def lifespan(app: FastAPI):
         print("✅ OpenRouter API key found")
     else:
         print("⚠️ WARNING: No API key configured in .env")
-        print("Set GEMINI_API_KEY or OPENROUTER_API_KEY to use the backend")
+        print("Backend will now run on local llm (Ollama) without external API access")
     
     yield
     # Shutdown: cleanup if needed

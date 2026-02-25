@@ -20,6 +20,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_ollama import ChatOllama
 import hashlib
 import json
 from functools import lru_cache
@@ -468,10 +469,7 @@ class ArthMitraBot:
         openrouter_key = os.getenv("OPENROUTER_API_KEY")
         
         if not gemini_key and not openrouter_key:
-            raise ValueError(
-                "No API key found. Set either GEMINI_API_KEY or OPENROUTER_API_KEY in .env file.\n"
-                "Gemini is recommended for better performance."
-            )
+            print("⚠️ No API keys found - will use offline LLM now")
         
         # Initialize embeddings with faster model and caching
         # Using a smaller, faster model for better performance
@@ -502,7 +500,17 @@ class ArthMitraBot:
             google_api_key=gemini_key,
             convert_system_message_to_human=True,
             )
-        
+        else:
+            # Offline fallback LLM
+            print("🟡 No API keys found — using offline LLM (gemma3:1b)")
+            self.llm = ChatOllama(
+            model="gemma3:1b",   # speeeed
+            temperature=0.2,
+            base_url="http://localhost:11434",
+            think=False,
+            )
+
+
         # Load or create vector store
         if os.path.exists(CHROMA_PERSIST_DIR):
             self.vectorstore = Chroma(
@@ -912,10 +920,12 @@ If you have questions about current gold investment options in India or tax impl
         # Determine which AI model is being used
         model_name = None
         if self.llm:
-            if isinstance(self.llm, ChatGoogleGenerativeAI):
-                model_name = "Google Gemini (gemini-1.5-flash)"
-            else:
+            if isinstance(self.llm, ChatOpenAI):
                 model_name = "OpenRouter (gpt-4o-mini)"
+            elif isinstance(self.llm, ChatGoogleGenerativeAI):
+                model_name = "Google Gemini (gemini-1.5-flash)"
+            elif isinstance(self.llm, ChatOllama):
+                 model_name = "Ollama (gemma3:1b)"
         
         return {
             "initialized": self._initialized,
