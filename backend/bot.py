@@ -485,24 +485,23 @@ class ArthMitraBot:
         self.embeddings = self._embeddings_cache
         print("✅ Embeddings model loaded")
         
-        # Initialize LLM - Prefer Gemini if available
-        if gemini_key:
-            print("🤖 Using Google Gemini AI (gemini-1.5-flash)")
-            self.llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
-                temperature=0.3,
-                google_api_key=gemini_key,
-                convert_system_message_to_human=True  # Gemini doesn't support system messages
-            )
-        else:
+        # Initialize LLM
+        if openrouter_key:
             print("🤖 Using OpenRouter AI (gpt-4o-mini)")
             self.llm = ChatOpenAI(
-                model="openai/gpt-4o-mini",
-                temperature=0.3,
-                openai_api_key=openrouter_key,
-                openai_api_base="https://openrouter.ai/api/v1",
+            model="openai/gpt-4o-mini",
+            temperature=0.3,
+            openai_api_key=openrouter_key,
+            openai_api_base="https://openrouter.ai/api/v1",
             )
-
+        elif gemini_key:
+            print("🤖 Using Google Gemini AI (gemini-1.5-flash)")
+            self.llm = ChatGoogleGenerativeAI(
+            model="gemini-1.5-flash",
+            temperature=0.3,
+            google_api_key=gemini_key,
+            convert_system_message_to_human=True,
+            )
         
         # Load or create vector store
         if os.path.exists(CHROMA_PERSIST_DIR):
@@ -613,9 +612,9 @@ class ArthMitraBot:
             self._retriever = self.vectorstore.as_retriever(
                 search_type="mmr",  # Changed from similarity to mmr for better relevance
                 search_kwargs={
-                    "k": OPTIMIZED_RETRIEVAL_K,  # Reduced from 5 to 3
+                    "k": OPTIMIZED_RETRIEVAL_K,  
                     "fetch_k": 10,  # Fetch more candidates but return only k best
-                    "lambda_mult": 0.5  # Balance between relevance and diversity
+                    "lambda_mult": 0.65  # Balance between relevance and diversity
                 }
             )
             
@@ -855,7 +854,7 @@ If you have questions about current gold investment options in India or tax impl
         if gold_response:
             def gold_stream():
                 yield gold_response["response"]
-            return gold_stream(), gold_response.get("sources", ["gold_data.csv"])
+            return gold_stream(), gold_response.get("sources", [""])
 
         user_profile_text = format_user_profile(profile) if profile else ""
         chat_history_text = format_chat_history(history)
