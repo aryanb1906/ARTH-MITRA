@@ -4,6 +4,7 @@ Uses LangChain + OpenRouter + ChromaDB for document retrieval and response gener
 """
 
 import os
+import profile
 import re
 import glob
 import pandas as pd
@@ -314,17 +315,45 @@ def format_user_profile(profile: Dict) -> str:
     profile_text += f"- **Employment Status**: {profile.get('employmentStatus', 'Not specified')}\n"
     
     # Add specific notes based on employment
-    emp_status = profile.get('employmentStatus', '')
-    if 'Government' in emp_status:
-        profile_text += "  (Note: Higher NPS employer contribution limit - 14% of salary)\n"
-    elif 'Retired' in emp_status:
-        profile_text += "  (Note: Focus on senior citizen schemes like SCSS, PMVVY)\n"
+    emp_status = profile.get('employmentStatus')
+
+    EMP_NOTES = {
+    "Salaried - Government":
+        "Higher NPS employer contribution limit – 14% of salary",
+
+    "Salaried - Private":
+        "Optimize 80C + 80D, consider NPS Tier I ₹50,000 under 80CCD(1B)",
+
+    "Self-Employed":
+        "Consider presumptive taxation (44ADA), expense deductions, advance tax planning",
+
+    "Business Owner":
+        "Explore 44AD/44AE, depreciation benefits, expense optimisation, advance tax",
+
+    "Retired":
+        "Focus on senior citizen schemes like SCSS, PMVVY, higher interest exemption",
+
+    "Unemployed":
+        "Focus on tax-free interest instruments and capital gains planning"
+    }
+
+    note = EMP_NOTES.get(emp_status)
+    if note:
+        profile_text += f"  (Note: {note})\n"
     
     profile_text += f"- **Tax Regime**: {profile.get('taxRegime', 'Not specified')}\n"
     if profile.get('taxRegime') == 'Old Regime':
         profile_text += "  (Note: Eligible for 80C, 80D, and other deductions)\n"
     elif profile.get('taxRegime') == 'New Regime':
-        profile_text += "  (Note: Limited deductions - only NPS employer contribution, no 80C/80D)\n"
+        profile_text += (
+        "(Note: Most deductions like 80C/80D not available; "
+        "standard deduction and employer NPS contribution still allowed)\n"
+        )
+    elif profile.get('taxRegime') not in ('Old Regime', 'New Regime'):
+        profile_text += (
+        "(Note: Tax-saving advice depends heavily on regime selection)\n"
+    )
+
     
     profile_text += f"- **Housing Status**: {profile.get('homeownerStatus', 'Not specified')}\n"
     if 'Loan' in profile.get('homeownerStatus', ''):

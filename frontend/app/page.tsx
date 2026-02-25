@@ -42,12 +42,12 @@ export default function Page() {
     event.currentTarget.style.setProperty('--my', `${y}px`)
   }
 
-  useEffect(() => {
-    fetch("http://localhost:8000/ping")
-      .then(res => res.json())
-      .then(data => setMsg(data.status))
-      .catch(() => setMsg("Backend not connected"))
-  }, [])
+  // useEffect(() => {
+  //   fetch("http://localhost:8000/ping")
+  //     .then(res => res.json())
+  //     .then(data => setMsg(data.status))
+  //     .catch(() => setMsg("Backend not connected"))
+  // }, [])
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-white via-blue-50/30 to-emerald-50/20">
       <div className="pointer-events-none absolute -top-24 left-1/4 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
@@ -71,11 +71,11 @@ export default function Page() {
         </div>
       </nav>
 
-      {msg && (
+     {/* {msg && (
         <p className="mt-2 mx-auto w-fit text-sm text-primary font-medium rounded-full border border-primary/20 bg-primary/5 px-4 py-1">
           {msg}
         </p>
-      )}
+      )} */}
 
       {/* Hero Section */}
       <section className="relative px-4 md:px-6 py-2 md:py-4 max-w-7xl mx-auto overflow-hidden">
