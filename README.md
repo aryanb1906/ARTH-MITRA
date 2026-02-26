@@ -21,68 +21,25 @@
 
 ## 🎉 Latest Updates
 
-**✨ NEW: Comprehensive Tax Calculator! 🧮💰✨**
+### ✅ Latest (Feb 2026)
 
-- 💰 **Old vs New Regime Comparison**: Full side-by-side comparison of both tax regimes for FY 2024-25
-- 🎯 **All Deductions**: 80C (₹1.5L), 80D (Health), 80E (Education), 80TTA, HRA, Standard Deduction, Others
-- 👴 **Age Group Support**: Different tax slabs for below 60, senior (60-80), and super senior (80+)
-- 📊 **Professional Charts**: Bar charts, pie charts, and effective rate visualizations using Recharts
-- 🎨 **Dynamic Color Coding**: Green highlights tax-saving regime, yellow shows higher tax
-- 📈 **Advanced Metrics**: Effective tax rate %, Marginal rate %, Deduction utilization %, Take-home %
-- 📱 **Responsive Design**: 3-column input grid that adapts to mobile, tablet, and desktop
-- 🤖 **Smart Recommendations**: AI suggests optimal regime based on your profile and deductions
-- ✅ **Accurate Calculations**: Correct FY 2024-25 progressive tax slabs with 4% cess
-- 🔗 **Easy Navigation**: Accessible from home page and header navigation menu at `/tax-calculator`
+- 🧮 **Comprehensive Tax Calculator** with old vs new regime comparison, full deduction support, age-wise slabs, and interactive charts.
+- 📊 **Live Analytics Dashboard** with real-time metrics, auto-refresh, and SQLite-backed tracking.
+- 📄 **Document Intelligence**: upload + semantic indexing + document-only querying for source-grounded answers.
+- 🧠 **Trust & Advisory Layer**: confidence score, why-this-answer, source highlights, scheme ranking, compare mode, and action plans.
+- 📤 **Chat Export Improvements**: clean **HTML/PDF** exports with proper tables, metadata, and readable formatting.
+- ⚡ **Performance Re-Benchmark Completed** (`backend/test_performance.py`):
+  - Cold average: **12.78s → 14.87s** (larger corpus)
+  - Cached average: **2.53s → 2.05s** (faster)
+  - Cache speedup: **5.05x → 7.3x**
 
-**✨ NEW: Live Analytics Dashboard on Landing Page! 📊✨**
+### 🚀 Core Capabilities
 
-- 📈 **Real-Time Stats Display**: Landing page now shows live analytics with 3 key metrics
-  - Financial Queries Answered
-  - Tax Saved For Users (calculated from query data)
-  - Accuracy Rate
-- 🔄 **Auto-Refresh Every 30 Seconds**: Stats update automatically in real-time from backend database
-- 💾 **Database Persistence**: All analytics stored in SQLite with proper schema and relationships
-- 👤 **User Management System**: Registration, login, profile management with robust authentication
-- 💬 **Chat History Persistence**: All conversations permanently saved in database, retrievable across sessions
-- 📊 **Full Analytics Suite**: Track usage patterns, response times, cache hit rates, and user behavior
-- 🔐 **Secure Data Storage**: Passwords hashed with bcrypt, parameterized queries for SQL injection protection
-- 📱 **Responsive Analytics**: Beautiful stats cards that work perfectly on mobile and desktop
-- 🚀 **Professional UI/UX**: Landing page designed like major tech companies with gradient text and polished spacing
-
-**Previous Features:**
-
-- 📄 **Document Upload Feature**: Upload PDFs, TXT, CSV, Markdown files with automatic indexing
-- 🔍 **Semantic Document Analysis**: Ask questions about your uploaded documents (receipts, statements, documents)
-- ⚡ **Auto-Focus Chat**: Input field auto-focuses after document upload for seamless interaction
-- 📍 **Context-Aware Placeholders**: Chat input shows uploaded filename for easy reference
-- 🎯 **Chunked Indexing**: Visual feedback on document chunks indexed (e.g., "Indexed 2 chunks from Receipt.pdf")
-- 🚀 **OpenRouter API Integration**: Added OpenRouter support alongside Gemini for reliable AI responses
-- 🐛 **Enhanced Error Handling**: Improved backend logging with detailed error messages and traceback
-- ✅ **Fixed FormData Upload**: Proper multipart/form-data handling for reliable file uploads
-- 🧠 **Profile Setup Flow**: Login → Profile Setup → Chat with personalized context stored in localStorage
-- 💬 **Streaming Chat**: Token-by-token streaming with fallback to standard responses
-- 🗂️ **Chat Memory**: Previous chat context included in RAG prompts for follow-up questions
-- 📊 **Auto Charts**: Response Insights charts auto-generated from numeric responses
-- 📈 **Pinned Charts**: Save and switch between per-response charts with manual chart type toggle
-- 📤 **Export Charts**: Download charts as PNG from the sidebar
-- ↔️ **Resizable Sidebar**: Drag to resize the right insights panel
-- 👤 **Profile Editing**: Update compulsory fields and optional fields with localStorage persistence
-- 📱 **Collapsible Sidebars**: Toggle sidebars for maximum chat space
-- 📊 **Document Query Analytics**: Visual bar chart showing document query history
-- 🎨 **Beautiful Markdown Rendering**: AI responses display with structured formatting
-- 🤖 **Dual AI Support**: Using openai/gpt-4o-mini via OpenRouter or Google Gemini
-
-**Earlier Updates:**
-
-- 👤 **Profile Editing**: Update compulsory fields (age, income, employment status, tax regime, homeowner status) plus optional fields (children, parents age, investments, goals, risk appetite) with localStorage persistence
-- 📱 **Collapsible Sidebars**: Toggle left (profile & history) and right (saved messages) sidebars for maximum chat space
-- 📊 **Document Query Analytics**: Visual bar chart showing document query history and usage patterns
-- 🎨 **Beautiful Markdown Rendering**: AI responses display with structured formatting, tables, and styling
-- 🤖 **Dual AI Support**: Using `openai/gpt-4o-mini` via OpenRouter or Google Gemini for intelligent responses
-- 📚 **RAG Pipeline Active**: 21 documents indexed (13 PDFs + 2 TXT + 5 CSVs + 1 DOCX) with 1822+ knowledge chunks
-- 🚀 **Frontend on Port 3100**: Modern Next.js interface with real-time chat
-- ⚡ **Backend on Port 8000**: FastAPI server with lazy initialization for faster startup
-- 💡 **Smart API Selection**: Automatically uses Gemini if available, falls back to OpenRouter
+- Authentication + profile setup flow with persisted chat sessions.
+- Streaming chat with memory, RAG retrieval, and multi-source grounding.
+- Source-aware UX: copy sources, clickable source chips, snippet expand/collapse.
+- Response insights: auto charts, pinned charts, sortable comparison tables.
+- Responsive UI with collapsible/resizable sidebars and modern markdown rendering.
 
 ---
 
@@ -463,115 +420,31 @@ deployment:
 
 ## ✨ Features
 
-### � **Live Analytics Dashboard** ✨ **NEW**
-Real-time statistics displayed on the landing page showing:
-- **Financial Queries Answered**: Live count of total queries processed
-- **Tax Saved For Users**: Calculated from query data (₹20K per query estimate)
-- **Accuracy Rate**: AI response quality metrics (currently 98%)
-- Auto-refresh every 30 seconds from backend database
-- Professional stats display matching major tech companies
+### Core Product
+- 🗣️ Plain-language explanations for tax rules, schemes, and compliance.
+- 🎯 Personalized recommendations from profile context.
+- 📄 Document upload + semantic analysis (PDF/TXT/CSV/Markdown/DOCX).
+- 🔍 RAG-powered multi-source answers with traceable source citations.
 
-### 🗣️ **Plain Language Explanations**
-Transform complex tax laws and government schemes into simple, easy-to-understand language.
+### Advisory & Trust Layer
+- ✅ Confidence score + why-this-answer + source highlights.
+- ✅ Scheme ranking, side-by-side comparison, and action-plan generation.
+- ✅ Source-aware UX (copy sources, clickable source chips, snippet expand/collapse).
 
-### 🎯 **Personalized Recommendations**
-AI learns your income, age, location, and goals to provide tailored financial advice.
+### Tax & Planning Tools
+- 💰 Advanced tax calculator at `/tax-calculator` (Old vs New regime).
+- 📊 Full deduction support (80C, 80D, 80E, 80TTA, HRA, standard deduction, others).
+- 👴 Age-group slabs (below 60, 60-80, 80+), charts, and smart recommendation.
 
-### 📝 **Step-by-Step Tax Guidance**
-Complete walkthrough for filing income tax returns with forms, schedules, and documentation.
+### Analytics & Platform
+- 📈 Live landing-page analytics (queries, savings estimate, accuracy rate).
+- 💾 SQLite persistence for users, profiles, sessions, and chat history.
+- 🔐 Auth + secure storage practices (hashed passwords, parameterized queries).
+- 📱 Responsive UI with collapsible/resizable sidebars and modern markdown rendering.
 
-### 🌍 **Multilingual Support**
-Available in:
-- 🇬🇧 English
-- 🇮🇳 Hindi (हिंदी)
-- 🇮🇳 Tamil (தமிழ்)
-- 🇮🇳 Telugu (తెలుగు)
-- 🇮🇳 Kannada (ಕನ್ನಡ)
-- 🇮🇳 Marathi (मराठी)
-
-### 🔒 **Secure & Private**
-Your financial data is encrypted, never stored permanently, and fully compliant with regulations.
-
-### 🔄 **Real-Time Updates**
-Latest tax law changes, scheme updates, and government policies reflected instantly.
-
-### 📊 **Scheme Eligibility Checker**
-Automatically check which government schemes you qualify for based on your profile.
-
-### 💰 **Tax Calculator** ✨ **NEW**
-**Comprehensive tax calculator with regime comparison at `/tax-calculator`**
-
-Features:
-- **Old vs New Regime Comparison**: Side-by-side analysis of both tax regimes (FY 2024-25)
-- **All Deductions Supported**: 
-  - Section 80C (up to ₹1.5L)
-  - Section 80D (Health Insurance)
-  - Section 80E (Education Loan Interest)
-  - Section 80TTA (Savings Account Interest)
-  - HRA (House Rent Allowance)
-  - Standard Deduction (₹50K)
-  - Other Deductions
-- **Age Group Variations**: 
-  - Below 60 years
-  - Senior Citizen (60-80 years)
-  - Super Senior Citizen (80+ years)
-- **Professional Charts**:
-  - Bar chart comparing total tax across regimes
-  - Effective tax rate comparison
-  - Pie charts showing tax component breakdown
-- **Dynamic Color Coding**: Green for tax-saving regime, Yellow for higher tax
-- **Advanced Metrics**:
-  - Effective tax rate %
-  - Marginal tax rate %
-  - Deduction utilization %
-  - Take-home pay %
-- **Responsive 3-Column Grid**: Mobile-friendly input layout
-- **Smart Recommendations**: AI suggests the best regime based on your profile
-- **Accurate FY 2024-25 Slabs**: Correct progressive tax calculations with 4% cess
-
-### 📚 **Knowledge Base**
-Comprehensive library of financial terms, concepts, and best practices.
-
-### 👤 **Profile Management**
-Edit your profile directly from the chat interface with localStorage persistence for personalized recommendations.
-
-**Compulsory fields**
-- Age
-- Income
-- Employment status
-- Tax regime
-- Homeowner status
-
-**Optional fields**
-- Children and children ages
-- Parents age
-- Investment capacity
-- Risk appetite
-- Financial goals
-- Existing investments
-
-### 📱 **Collapsible UI**
-Toggle sidebar panels (profile history, saved messages) to maximize chat space and focus on conversations.
-
-### 📊 **Analytics Dashboard**
-Visual document query history with bar charts showing which documents are most frequently referenced for insights.
-
-### 💾 **Database Persistence**
-- User authentication and registration system
-- Chat history permanently saved in SQLite database
-- Profile data stored securely with hashed passwords
-- Analytics tracked automatically for every user interaction
-- Full user management with sessions and relationships
-
-### 📄 **Document Upload & Analysis**
-- Upload personal documents (PDFs, TXT, CSV, Markdown)
-- Automatic indexing and semantic chunking
-- Ask questions about uploaded documents
-- AI-powered document analysis with source citations
-- Real-time document chunking (e.g., "Indexed 2 chunks from Receipt-7000001.pdf")
-- Auto-focus chat input after upload for seamless interaction
-- Upload filename displayed in chat placeholder as context reminder
-- Retrieval-Augmented Generation (RAG) for accurate document-specific answers
+### Export & Productivity
+- 📤 Chat export to **HTML + PDF** with clean formatting and trust metadata.
+- 📉 Response insights charts, pinned charts, and chart export as PNG.
 
 ---
 
@@ -1361,13 +1234,12 @@ We appreciate all contributors who have helped make Arth-Mitra better!
 - ✅ Pin important AI responses to top of session
 - ✅ Expand/collapse source highlight snippets
 
-### Phase 3: Advanced Features (Planned) 📅
-- 🔮 Multilingual support (Hindi, Tamil, Telugu, Kannada, Marathi)
-- 🔮 Mobile applications (iOS & Android)
-- ✅ Document upload and automatic analysis
-- 🔮 Personalized financial dashboard with insights
-- 🔮 Step-by-step tax filing assistance
-- 🔮 Real-time tax law update notifications
+### Phase 3: Advanced Features (Current Focus) 🚧
+- 🚧 Multilingual support (Hindi, Tamil, Telugu, Kannada, Marathi)
+- 🚧 Personalized financial dashboard with deeper user insights
+- 🚧 Step-by-step tax filing assistant flow
+- 🚧 Real-time tax law update notifications
+- 📅 Mobile applications (iOS & Android)
 
 ### Phase 4: Enterprise Features (Future) 🚀
 - 🚀 Business tax support (GST, TDS, corporate tax)
