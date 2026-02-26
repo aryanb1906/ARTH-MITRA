@@ -9,12 +9,13 @@ import re
 import glob
 import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple, List, Iterable
+from typing import Dict, Optional, Tuple, List, Iterable, Any
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader, CSVLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, CSVLoader, TextLoader, Docx2txtLoader
+from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -31,14 +32,15 @@ load_dotenv()
 # Configuration
 CHROMA_PERSIST_DIR = "./chroma_db"
 DOCS_DIR = "./documents"  # Pre-loaded knowledge base documents
+UPLOADS_DIR = "./uploads"  # Runtime uploaded documents
 GOLD_DATA_PATH = os.path.join(DOCS_DIR, "gold_data.csv")
 
 # Performance optimization settings
 CACHE_SIZE = 100  # Number of queries to cache
 CACHE_TTL = 3600  # Cache time-to-live in seconds
-OPTIMIZED_CHUNK_SIZE = 350  # Smaller chunks for faster first query processing
-OPTIMIZED_CHUNK_OVERLAP = 35  # Optimized overlap for efficient retrieval
-OPTIMIZED_RETRIEVAL_K = 5  # Optimized to retrieve top 5 most relevant documents
+OPTIMIZED_CHUNK_SIZE = 1000  # Larger chunks preserve more document context
+OPTIMIZED_CHUNK_OVERLAP = 150  # Better continuity across chunk boundaries
+OPTIMIZED_RETRIEVAL_K = 10  # Retrieve more candidates for document-grounded answers
 
 # Month name mappings for date parsing
 MONTH_NAMES = {
@@ -537,21 +539,21 @@ class ArthMitraBot:
         return self
     
     def _auto_index_documents(self):
-        """Auto-index all documents from the documents folder"""
-        if not os.path.exists(DOCS_DIR):
-            os.makedirs(DOCS_DIR, exist_ok=True)
-            print(f"📁 Created {DOCS_DIR} folder. Add PDF/CSV/TXT files here for RAG.")
-            return
-        
+        """Auto-index all documents from documents + uploads folders"""
+        for folder in [DOCS_DIR, UPLOADS_DIR]:
+            if not os.path.exists(folder):
+                os.makedirs(folder, exist_ok=True)
+
         # Get all supported files
-        supported_extensions = ['*.pdf', '*.csv', '*.txt', '*.md']
+        supported_extensions = ['*.pdf', '*.csv', '*.txt', '*.md', '*.docx']
         files_to_index = []
         
-        for ext in supported_extensions:
-            files_to_index.extend(glob.glob(os.path.join(DOCS_DIR, '**', ext), recursive=True))
+        for base_dir in [DOCS_DIR, UPLOADS_DIR]:
+            for ext in supported_extensions:
+                files_to_index.extend(glob.glob(os.path.join(base_dir, '**', ext), recursive=True))
         
         if not files_to_index:
-            print(f"📭 No documents found in {DOCS_DIR}. Add PDF/CSV/TXT files for knowledge base.")
+            print(f"📭 No documents found in {DOCS_DIR} or {UPLOADS_DIR}. Add PDF/CSV/TXT/MD/DOCX files for knowledge base.")
             return
         
         # Check which files are already indexed (by checking metadata)
@@ -582,7 +584,7 @@ class ArthMitraBot:
     def _format_docs(self, docs):
         """Format retrieved documents into a string with source info - optimized for speed"""
         formatted = []
-        max_context_length = 2000  # Limit total context to reduce LLM processing time
+        max_context_length = 12000  # Larger context allows better coverage of uploaded docs
         current_length = 0
         
         for doc in docs:
@@ -621,7 +623,7 @@ class ArthMitraBot:
                 search_type="mmr",  # Changed from similarity to mmr for better relevance
                 search_kwargs={
                     "k": OPTIMIZED_RETRIEVAL_K,  
-                    "fetch_k": 10,  # Fetch more candidates but return only k best
+                    "fetch_k": 30,  # Fetch more candidates and select best diverse chunks
                     "lambda_mult": 0.65  # Balance between relevance and diversity
                 }
             )
@@ -632,6 +634,54 @@ class ArthMitraBot:
                 | self.llm
                 | StrOutputParser()
             )
+
+    def _get_source_docs(self, query: str, source_filter: Optional[str] = None):
+        """Retrieve documents, optionally constrained to a specific source file."""
+        if not source_filter:
+            return self._retriever.invoke(query)
+
+        def normalize_source_name(name: str) -> str:
+            source = os.path.basename((name or "").strip())
+            source = re.sub(r"\s+", " ", source)
+            return source.lower()
+
+        # Fetch a wider candidate pool and filter by source filename to support
+        # both old metadata (full path) and new metadata (basename).
+        candidates = self.vectorstore.similarity_search(query, k=max(OPTIMIZED_RETRIEVAL_K * 3, 30))
+        target = normalize_source_name(source_filter)
+
+        filtered = []
+        for doc in candidates:
+            source_meta = doc.metadata.get("source", "")
+            source_name = normalize_source_name(source_meta)
+            if source_name == target:
+                filtered.append(doc)
+
+        if filtered:
+            return filtered[:OPTIMIZED_RETRIEVAL_K]
+
+        # Fallback: if semantic retrieval misses, pull chunks directly from the
+        # selected source so the model can still answer from that document.
+        try:
+            results = self.vectorstore.get(include=['documents', 'metadatas'])
+            documents = results.get('documents', []) or []
+            metadatas = results.get('metadatas', []) or []
+
+            direct_matches = []
+            for content, metadata in zip(documents, metadatas):
+                if not metadata:
+                    continue
+                source_name = normalize_source_name(metadata.get('source', ''))
+                if source_name == target:
+                    direct_matches.append(Document(page_content=content, metadata=metadata))
+
+            direct_matches.sort(key=lambda d: d.metadata.get('chunk_index', 10**9))
+            if direct_matches:
+                return direct_matches[:OPTIMIZED_RETRIEVAL_K]
+        except Exception as e:
+            print(f"⚠️ Source filter fallback failed: {e}")
+
+        return []
     
     def add_documents(self, file_path: str) -> Dict:
         """Add documents to the knowledge base"""
@@ -645,6 +695,8 @@ class ArthMitraBot:
             loader = PyPDFLoader(file_path)
         elif file_ext == ".csv":
             loader = CSVLoader(file_path)
+        elif file_ext == ".docx":
+            loader = Docx2txtLoader(file_path)
         elif file_ext in [".txt", ".md"]:
             loader = TextLoader(file_path)
         else:
@@ -661,6 +713,12 @@ class ArthMitraBot:
         )
         
         splits = text_splitter.split_documents(documents)
+
+        # Ensure consistent source metadata for precise citations
+        for index, split in enumerate(splits):
+            split.metadata["source"] = os.path.basename(file_path)
+            split.metadata["chunk_index"] = index
+            split.metadata["file_type"] = file_ext
         
         # Add to vector store
         self.vectorstore.add_documents(splits)
@@ -694,6 +752,415 @@ class ArthMitraBot:
         if hasattr(content, 'text'):
             return content.text
         return str(content) if content else ""
+
+    def _extract_query_terms(self, query: str) -> List[str]:
+        words = re.findall(r"[a-zA-Z]{3,}", (query or "").lower())
+        stop_words = {
+            "what", "which", "where", "when", "this", "that", "from", "with", "about",
+            "please", "could", "would", "there", "their", "have", "show", "tell", "into"
+        }
+        terms: List[str] = []
+        seen = set()
+        for word in words:
+            if word in stop_words or word in seen:
+                continue
+            seen.add(word)
+            terms.append(word)
+        return terms[:8]
+
+    def _build_source_highlights(self, source_docs: List[Document], query: str, max_items: int = 3) -> List[Dict[str, str]]:
+        terms = self._extract_query_terms(query)
+        highlights: List[Dict[str, str]] = []
+
+        for doc in source_docs:
+            content = (doc.page_content or "").strip()
+            if not content:
+                continue
+
+            snippet = ""
+            lower_content = content.lower()
+            if terms:
+                positions = [lower_content.find(term) for term in terms if lower_content.find(term) >= 0]
+                if positions:
+                    pos = min(positions)
+                    start = max(0, pos - 70)
+                    end = min(len(content), pos + 180)
+                    snippet = content[start:end].replace("\n", " ").strip()
+
+            if not snippet:
+                snippet = content[:220].replace("\n", " ").strip()
+
+            if len(snippet) > 220:
+                snippet = snippet[:220].rstrip() + "..."
+
+            source_name = os.path.basename(doc.metadata.get("source", "Knowledge Base"))
+            page = doc.metadata.get("page")
+            if page is not None and str(page).isdigit():
+                source_name = f"{source_name} (Page {int(page) + 1})"
+
+            highlights.append({"source": source_name, "snippet": snippet})
+            if len(highlights) >= max_items:
+                break
+
+        return highlights
+
+    def _calculate_confidence(self, source_docs: List[Document], query: str, source_filter: Optional[str] = None) -> Tuple[float, str]:
+        if not source_docs:
+            return 0.32, "low"
+
+        unique_sources = len({os.path.basename(doc.metadata.get("source", "")) for doc in source_docs})
+        context_chars = sum(len((doc.page_content or "")) for doc in source_docs)
+        terms = self._extract_query_terms(query)
+
+        match_count = 0
+        if terms:
+            merged = "\n".join([(doc.page_content or "").lower() for doc in source_docs])
+            for term in terms:
+                if term in merged:
+                    match_count += 1
+
+        term_coverage = (match_count / max(len(terms), 1)) if terms else 0.6
+
+        score = 0.35
+        score += min(unique_sources, 4) * 0.09
+        score += 0.12 if context_chars > 1800 else 0.06
+        score += min(term_coverage * 0.25, 0.25)
+        if source_filter:
+            score += 0.08
+
+        score = round(max(0.2, min(score, 0.97)), 2)
+        label = "high" if score >= 0.75 else "medium" if score >= 0.5 else "low"
+        return score, label
+
+    def _parse_income_number(self, income_raw: Optional[str]) -> Optional[float]:
+        if not income_raw:
+            return None
+        cleaned = re.sub(r"[^\d.]", "", str(income_raw))
+        if not cleaned:
+            return None
+        try:
+            return float(cleaned)
+        except Exception:
+            return None
+
+    def _build_scheme_rankings(self, profile: Optional[Dict], query: str, max_items: int = 5) -> List[Dict[str, Any]]:
+        profile = profile or {}
+        query_l = (query or "").lower()
+
+        age = profile.get("age") or 0
+        try:
+            age = int(age)
+        except Exception:
+            age = 0
+
+        tax_regime = (profile.get("taxRegime") or "").lower()
+        risk = (profile.get("riskAppetite") or "").lower()
+        employment = (profile.get("employmentStatus") or "").lower()
+        homeowner = (profile.get("homeownerStatus") or "").lower()
+        goals = [str(g).lower() for g in (profile.get("financialGoals") or [])]
+        children = (profile.get("children") or "").lower()
+        income = self._parse_income_number(profile.get("income"))
+
+        has_tax_intent = any(k in query_l for k in ["tax", "deduction", "save", "80c", "80d", "it return"])
+        has_pension_intent = any(k in query_l for k in ["pension", "retire", "retirement"])
+        has_child_intent = any(k in query_l for k in ["child", "education", "daughter", "sukanya"])
+
+        schemes = [
+            {
+                "name": "Public Provident Fund (PPF)",
+                "base": 72,
+                "eligibility": "Resident individual; 15-year lock-in; up to ₹1.5L under 80C (Old Regime)",
+                "nextStep": "Open/continue PPF account and set monthly auto-debit.",
+            },
+            {
+                "name": "National Pension System (NPS)",
+                "base": 70,
+                "eligibility": "Age 18-70; extra ₹50,000 deduction under 80CCD(1B) (Old Regime)",
+                "nextStep": "Select active/auto choice and set annual contribution target.",
+            },
+            {
+                "name": "ELSS Tax Saver Funds",
+                "base": 66,
+                "eligibility": "Equity-linked 80C option with 3-year lock-in (Old Regime)",
+                "nextStep": "Start SIP aligned to risk profile and 3+ year horizon.",
+            },
+            {
+                "name": "Senior Citizens’ Savings Scheme (SCSS)",
+                "base": 64,
+                "eligibility": "Age 60+ (or eligible retirees); quarterly interest payout",
+                "nextStep": "Evaluate SCSS for stable retirement income allocation.",
+            },
+            {
+                "name": "Sukanya Samriddhi Yojana (SSY)",
+                "base": 63,
+                "eligibility": "Girl child account with EEE tax treatment under 80C (Old Regime)",
+                "nextStep": "If eligible, open SSY for long-term education/marriage corpus.",
+            },
+            {
+                "name": "PM Jeevan Jyoti Bima Yojana (PMJJBY)",
+                "base": 55,
+                "eligibility": "Low-cost annual life cover; linked bank account required",
+                "nextStep": "Activate PMJJBY through your bank for baseline life cover.",
+            },
+        ]
+
+        ranked: List[Dict[str, Any]] = []
+        for item in schemes:
+            score = float(item["base"])
+            name_l = item["name"].lower()
+            reasons: List[str] = []
+            missing_criteria: List[str] = []
+
+            if "ppf" in name_l:
+                if risk in ["conservative", "moderate"]:
+                    score += 10
+                    reasons.append("Matches lower-volatility preference")
+                if "old" in tax_regime or has_tax_intent:
+                    score += 8
+                    reasons.append("Supports 80C tax-saving plan")
+
+            if "nps" in name_l:
+                if "salaried" in employment or "self" in employment or "business" in employment:
+                    score += 9
+                    reasons.append("Works well for long-term retirement corpus")
+                if has_pension_intent or "retirement" in " ".join(goals):
+                    score += 10
+                    reasons.append("Aligned with retirement objective")
+                if "old" in tax_regime:
+                    score += 7
+                    reasons.append("Eligible for additional tax deduction")
+
+            if "elss" in name_l:
+                if risk in ["aggressive", "moderate"]:
+                    score += 10
+                    reasons.append("Suitable for market-linked growth")
+                if "old" in tax_regime or has_tax_intent:
+                    score += 7
+                    reasons.append("Combines wealth creation with 80C")
+
+            if "scss" in name_l:
+                if age >= 60:
+                    score += 26
+                    reasons.append("Strong fit for senior-citizen eligibility")
+                else:
+                    score -= 20
+                    reasons.append("Usually not eligible before 60")
+                    missing_criteria.append("Age 60+ generally required")
+
+            if "sukanya" in name_l:
+                if has_child_intent or "yes" in children:
+                    score += 18
+                    reasons.append("Relevant for child-focused planning")
+                else:
+                    score -= 16
+                    reasons.append("Needs girl-child eligibility")
+                    missing_criteria.append("Girl child eligibility needed")
+
+            if "pm jeevan" in name_l and (income is None or income < 1500000):
+                score += 8
+                reasons.append("Low-cost protection layer")
+
+            if "new" in tax_regime and ("80c" in item["eligibility"].lower() or "deduction" in item["eligibility"].lower()):
+                score -= 8
+                reasons.append("Tax benefit impact lower in New Regime")
+                missing_criteria.append("Old Regime gives stronger deduction benefit")
+
+            if "loan" in homeowner and "nps" in name_l:
+                score += 3
+                reasons.append("Can complement existing home-loan tax planning")
+
+            if not reasons:
+                reasons.append("General suitability based on available profile")
+
+            ranked.append({
+                "name": item["name"],
+                "score": int(max(1, min(round(score), 100))),
+                "reason": "; ".join(reasons[:2]),
+                "eligibility": item["eligibility"],
+                "nextStep": item["nextStep"],
+                "missingCriteria": missing_criteria,
+            })
+
+        ranked.sort(key=lambda row: row["score"], reverse=True)
+        return ranked[:max_items]
+
+    def _extract_document_insights(self, source_docs: List[Document], max_items: int = 6) -> List[Dict[str, str]]:
+        insights: List[Dict[str, str]] = []
+        if not source_docs:
+            return insights
+
+        def add_insight(field: str, value: str, source: str):
+            if not value:
+                return
+            if any(item["field"] == field and item["value"] == value for item in insights):
+                return
+            insights.append({"field": field, "value": value, "source": source})
+
+        for doc in source_docs:
+            source_name = os.path.basename(doc.metadata.get("source", "Knowledge Base"))
+            text = (doc.page_content or "").replace("\n", " ")
+            text_l = text.lower()
+
+            rate_match = re.search(r"(\d+(?:\.\d+)?)\s*%", text)
+            if rate_match:
+                add_insight("Interest Rate", f"{rate_match.group(1)}%", source_name)
+
+            date_match = re.search(r"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})\b", text)
+            if date_match and ("maturity" in text_l or "tenure" in text_l or "valid" in text_l):
+                add_insight("Maturity / Tenure Date", date_match.group(1), source_name)
+
+            if any(keyword in text_l for keyword in ["penalty", "premature", "charges", "fee"]):
+                sentence = re.search(r"([^.!?]*(penalty|premature|charges|fee)[^.!?]*[.!?])", text, re.IGNORECASE)
+                if sentence:
+                    add_insight("Penalties", sentence.group(1).strip()[:180], source_name)
+
+            if any(keyword in text_l for keyword in ["eligible", "eligibility", "who can", "applicable"]):
+                sentence = re.search(r"([^.!?]*(eligible|eligibility|who can|applicable)[^.!?]*[.!?])", text, re.IGNORECASE)
+                if sentence:
+                    add_insight("Eligibility", sentence.group(1).strip()[:180], source_name)
+
+            if len(insights) >= max_items:
+                break
+
+        return insights[:max_items]
+
+    def _build_compare_mode(self, query: str, schemes: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        query_l = (query or "").lower()
+        is_compare = (" vs " in query_l) or (" versus " in query_l) or ("compare" in query_l)
+        if not is_compare or len(schemes) < 2:
+            return None
+
+        pool = schemes[:5]
+        chosen = []
+        for scheme in pool:
+            key = scheme.get("name", "").lower()
+            parts = [p for p in re.split(r"[^a-zA-Z]+", key) if len(p) > 2]
+            if any(part in query_l for part in parts):
+                chosen.append(scheme)
+
+        unique = []
+        seen_names = set()
+        for item in chosen + pool:
+            name = item.get("name")
+            if name in seen_names:
+                continue
+            seen_names.add(name)
+            unique.append(item)
+            if len(unique) == 2:
+                break
+
+        if len(unique) < 2:
+            return None
+
+        a, b = unique[0], unique[1]
+        rec = a if a.get("score", 0) >= b.get("score", 0) else b
+        return {
+            "schemeA": {
+                "name": a.get("name"),
+                "score": a.get("score"),
+                "pros": [a.get("reason", "")],
+                "cons": a.get("missingCriteria", [])[:2],
+                "fit": a.get("eligibility", ""),
+            },
+            "schemeB": {
+                "name": b.get("name"),
+                "score": b.get("score"),
+                "pros": [b.get("reason", "")],
+                "cons": b.get("missingCriteria", [])[:2],
+                "fit": b.get("eligibility", ""),
+            },
+            "recommendedFit": f"{rec.get('name')} is currently the better fit for this profile/query.",
+        }
+
+    def _build_why_this_answer(self, query: str, source_docs: List[Document], confidence: float, source_filter: Optional[str]) -> str:
+        source_count = len({os.path.basename(doc.metadata.get("source", "")) for doc in source_docs})
+        chunk_count = len(source_docs)
+        terms = self._extract_query_terms(query)[:4]
+        terms_text = ", ".join(terms) if terms else "core query intent"
+        if source_filter:
+            return (
+                f"Response grounded on {chunk_count} chunks from {source_count} source(s) within selected file '{source_filter}', "
+                f"matching terms like {terms_text}. Confidence is {int(confidence * 100)}%."
+            )
+        return (
+            f"Response grounded on {chunk_count} retrieved chunks from {source_count} source(s), "
+            f"matching terms like {terms_text}. Confidence is {int(confidence * 100)}%."
+        )
+
+    def _build_tax_action_plan(self, profile: Optional[Dict], query: str) -> Optional[Dict[str, Any]]:
+        profile = profile or {}
+        query_l = (query or "").lower()
+        tax_regime = (profile.get("taxRegime") or "").strip() or "Not selected"
+        employment = (profile.get("employmentStatus") or "").lower()
+
+        is_tax_intent = any(k in query_l for k in [
+            "tax", "itr", "deduction", "80c", "80d", "advance tax", "refund", "regime"
+        ])
+        if not is_tax_intent and not profile:
+            return None
+
+        today = datetime.now()
+        current_year = today.year
+        itr_due = datetime(current_year, 7, 31)
+        if today > itr_due:
+            itr_due = datetime(current_year + 1, 7, 31)
+
+        reminders = [
+            {
+                "title": "Review Form 26AS and AIS",
+                "dueDate": (today + timedelta(days=7)).date().isoformat(),
+                "frequency": "once",
+                "category": "compliance",
+            },
+            {
+                "title": "ITR filing deadline",
+                "dueDate": itr_due.date().isoformat(),
+                "frequency": "yearly",
+                "category": "filing",
+            },
+        ]
+
+        if "self" in employment or "business" in employment:
+            reminders.extend([
+                {"title": "Advance tax installment (Q1)", "dueDate": f"{today.year}-06-15", "frequency": "yearly", "category": "advance-tax"},
+                {"title": "Advance tax installment (Q2)", "dueDate": f"{today.year}-09-15", "frequency": "yearly", "category": "advance-tax"},
+                {"title": "Advance tax installment (Q3)", "dueDate": f"{today.year}-12-15", "frequency": "yearly", "category": "advance-tax"},
+                {"title": "Advance tax installment (Q4)", "dueDate": f"{today.year + 1}-03-15", "frequency": "yearly", "category": "advance-tax"},
+            ])
+
+        steps = [
+            "Validate income, TDS, and interest entries from Form 26AS/AIS.",
+            f"Confirm regime choice ({tax_regime}) and simulate tax outgo before final filing.",
+            "Prioritize eligible deductions/exemptions and keep proof documents organized.",
+            "Review filing status 2 weeks before deadline and clear any pending tax.",
+        ]
+
+        return {
+            "title": "Personalized Tax Action Plan",
+            "steps": steps,
+            "reminders": reminders,
+        }
+
+    def _build_response_metadata(
+        self,
+        query: str,
+        profile: Optional[Dict],
+        source_docs: List[Document],
+        source_filter: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        confidence, confidence_label = self._calculate_confidence(source_docs, query, source_filter)
+        schemes = self._build_scheme_rankings(profile, query)
+        compare = self._build_compare_mode(query, schemes)
+        return {
+            "confidence": confidence,
+            "confidenceLabel": confidence_label,
+            "highlights": self._build_source_highlights(source_docs, query),
+            "whyThisAnswer": self._build_why_this_answer(query, source_docs, confidence, source_filter),
+            "schemes": schemes,
+            "comparison": compare,
+            "documentInsights": self._extract_document_insights(source_docs),
+            "actionPlan": self._build_tax_action_plan(profile, query),
+        }
     
     def _handle_gold_price_query(self, query: str) -> Optional[Dict]:
         """
@@ -740,6 +1207,16 @@ Here is the gold price data for **{requested_date_readable}**:
 *Note: Prices are in USD per troy ounce.*
 
 If you have any questions about investing in gold (like Sovereign Gold Bonds, Gold ETFs, or physical gold) or their tax implications, feel free to ask!"""
+            return {
+                "response": response,
+                "sources": ["gold_data.csv"],
+                "confidence": 0.95,
+                "confidenceLabel": "high",
+                "highlights": [{"source": "gold_data.csv", "snippet": f"Gold price for {requested_date_str} is {price_data['price']} (USD/oz)."}],
+                "schemes": [],
+                "actionPlan": None,
+                "cached": False,
+            }
 
         # Try to get nearest price if exact not found
         nearest_data, explanation = gold_lookup.get_nearest_price(parsed_date)
@@ -763,6 +1240,16 @@ I don't have gold price data for **{requested_date_readable}** (this may be a ho
 *Note: Prices are in USD per troy ounce.*
 
 If you need information about gold investment options available in India, such as Sovereign Gold Bonds (SGB), Gold ETFs, or Digital Gold, I'd be happy to help!"""
+            return {
+                "response": response,
+                "sources": ["gold_data.csv"],
+                "confidence": 0.82,
+                "confidenceLabel": "high",
+                "highlights": [{"source": "gold_data.csv", "snippet": f"Nearest available gold price date is {nearest_data['date']} with price {nearest_data['price']} (USD/oz)."}],
+                "schemes": [],
+                "actionPlan": None,
+                "cached": False,
+            }
 
         # No data available at all
         date_range = gold_lookup.get_date_range()
@@ -775,14 +1262,24 @@ If you need information about gold investment options available in India, such a
 I don't have gold price data for **{requested_date_readable}**.{range_info}
 
 If you have questions about current gold investment options in India or tax implications of gold investments, I would be happy to assist!"""
+        return {
+            "response": response,
+            "sources": ["gold_data.csv"],
+            "confidence": 0.45,
+            "confidenceLabel": "low",
+            "highlights": [{"source": "gold_data.csv", "snippet": "Requested date not available in the current dataset."}],
+            "schemes": [],
+            "actionPlan": None,
+            "cached": False,
+        }
         
-    def get_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None) -> Dict:
+    def get_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None, source_filter: Optional[str] = None) -> Dict:
         """Get AI response for a user query with caching"""
         if not self._initialized:
             raise RuntimeError("Bot not initialized. Call initialize() first.")
         
         # Check cache first (skip for gold queries which need real-time data)
-        if not is_gold_price_query(query):
+        if not source_filter and not is_gold_price_query(query):
             cached_response = self._response_cache.get(query, profile)
             if cached_response:
                 print("⚡ Cache hit - returning cached response")
@@ -811,25 +1308,45 @@ If you have questions about current gold investment options in India or tax impl
             prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", "No specific documents available.").replace("{question}", query)
             response = self.llm.invoke(prompt)
             sources = ["General Knowledge - No documents indexed yet"]
+            metadata = self._build_response_metadata(query, profile, [], source_filter)
             response_text = self._append_sources_section(
                 self._extract_text(response.content),
                 sources
             )
             return {
                 "response": response_text,
-                "sources": sources
+                "sources": sources,
+                **metadata,
+                "cached": False,
             }
         
         # Get source documents for citation
-        source_docs = self._retriever.invoke(query)
+        source_docs = self._get_source_docs(query, source_filter=source_filter)
+
+        if source_filter and not source_docs:
+            response_text = (
+                f"I could not find relevant content in **{source_filter}** for this question. "
+                "Please verify the filename and try a more specific query."
+            )
+            metadata = self._build_response_metadata(query, profile, [], source_filter)
+            return {
+                "response": response_text,
+                "sources": [source_filter],
+                **metadata,
+                "cached": False,
+            }
         
         # Create a custom prompt with profile
         context = "\n\n".join([doc.page_content for doc in source_docs])
         prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", context).replace("{question}", query)
         
         # Use LLM directly with the customized prompt
-        response = self.llm.invoke(prompt)
-        result = self._extract_text(response.content)
+        try:
+            response = self.llm.invoke(prompt)
+            result = self._extract_text(response.content)
+        except Exception as e:
+            print(f"⚠️ LLM invocation failed, returning grounded fallback: {e}")
+            result = "I am facing a temporary model issue. I am sharing grounded details from the retrieved documents instead."
         
         # Extract sources
         sources = []
@@ -843,17 +1360,21 @@ If you have questions about current gold investment options in India or tax impl
                 sources.append(source_str)
         
         final_sources = sources if sources else ["Knowledge Base"]
+        metadata = self._build_response_metadata(query, profile, source_docs, source_filter)
         response_data = {
             "response": self._append_sources_section(result, final_sources),
-            "sources": final_sources
+            "sources": final_sources,
+            **metadata,
+            "cached": False,
         }
         
         # Cache the response for future queries
-        self._response_cache.set(query, response_data, profile)
+        if not source_filter:
+            self._response_cache.set(query, response_data, profile)
         
         return response_data
 
-    def stream_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None) -> Tuple[Iterable[str], List[str]]:
+    def stream_response(self, query: str, profile: Optional[Dict] = None, history: Optional[List[Dict]] = None, source_filter: Optional[str] = None) -> Tuple[Iterable[str], List[str], Dict[str, Any]]:
         """Stream AI response tokens for a user query."""
         if not self._initialized:
             raise RuntimeError("Bot not initialized. Call initialize() first.")
@@ -862,7 +1383,17 @@ If you have questions about current gold investment options in India or tax impl
         if gold_response:
             def gold_stream():
                 yield gold_response["response"]
-            return gold_stream(), gold_response.get("sources", [""])
+            return gold_stream(), gold_response.get("sources", [""]), {
+                "confidence": gold_response.get("confidence", 0.7),
+                "confidenceLabel": gold_response.get("confidenceLabel", "medium"),
+                "whyThisAnswer": "Response is based on direct lookup from gold_data.csv date-indexed records.",
+                "highlights": gold_response.get("highlights", []),
+                "schemes": gold_response.get("schemes", []),
+                "comparison": None,
+                "documentInsights": [],
+                "actionPlan": gold_response.get("actionPlan"),
+                "cached": False,
+            }
 
         user_profile_text = format_user_profile(profile) if profile else ""
         chat_history_text = format_chat_history(history)
@@ -875,6 +1406,8 @@ If you have questions about current gold investment options in India or tax impl
         if self.rag_chain is None or doc_count == 0:
             prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", "No specific documents available.").replace("{question}", query)
             sources = ["General Knowledge - No documents indexed yet"]
+            metadata = self._build_response_metadata(query, profile, [], source_filter)
+            metadata["cached"] = False
 
             def no_doc_stream():
                 for chunk in self.llm.stream(prompt):
@@ -882,9 +1415,22 @@ If you have questions about current gold investment options in India or tax impl
                     if text:
                         yield text
 
-            return no_doc_stream(), sources
+            return no_doc_stream(), sources, metadata
 
-        source_docs = self._retriever.invoke(query)
+        source_docs = self._get_source_docs(query, source_filter=source_filter)
+
+        if source_filter and not source_docs:
+            metadata = self._build_response_metadata(query, profile, [], source_filter)
+            metadata["cached"] = False
+
+            def no_match_stream():
+                yield (
+                    f"I could not find relevant content in **{source_filter}** for this question. "
+                    "Please verify the filename and try a more specific query."
+                )
+
+            return no_match_stream(), [source_filter], metadata
+
         context = "\n\n".join([doc.page_content for doc in source_docs])
         prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", context).replace("{question}", query)
 
@@ -899,6 +1445,8 @@ If you have questions about current gold investment options in India or tax impl
                 sources.append(source_str)
 
         final_sources = sources if sources else ["Knowledge Base"]
+        metadata = self._build_response_metadata(query, profile, source_docs, source_filter)
+        metadata["cached"] = False
 
         def doc_stream():
             for chunk in self.llm.stream(prompt):
@@ -906,7 +1454,7 @@ If you have questions about current gold investment options in India or tax impl
                 if text:
                     yield text
 
-        return doc_stream(), final_sources
+        return doc_stream(), final_sources, metadata
     
     def get_status(self) -> Dict:
         """Get bot status and statistics"""

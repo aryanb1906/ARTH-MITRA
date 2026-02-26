@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Form
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -41,10 +41,67 @@ class ChatRequest(BaseModel):
     history: Optional[List[ChatMessage]] = None
     userId: Optional[str] = None  # For database logging
     sessionId: Optional[str] = None  # For database logging
+    sourceFilter: Optional[str] = None  # Restrict retrieval to a selected document
+
+
+class SourceHighlight(BaseModel):
+    source: str
+    snippet: str
+
+
+class SchemeRecommendation(BaseModel):
+    name: str
+    score: int
+    reason: str
+    eligibility: str
+    nextStep: str
+    missingCriteria: List[str] = []
+
+
+class CompareScheme(BaseModel):
+    name: str
+    score: int
+    pros: List[str]
+    cons: List[str]
+    fit: str
+
+
+class ComparisonMode(BaseModel):
+    schemeA: CompareScheme
+    schemeB: CompareScheme
+    recommendedFit: str
+
+
+class DocumentInsight(BaseModel):
+    field: str
+    value: str
+    source: str
+
+
+class ReminderItem(BaseModel):
+    title: str
+    dueDate: str
+    frequency: str
+    category: str
+
+
+class ActionPlan(BaseModel):
+    title: str
+    steps: List[str]
+    reminders: List[ReminderItem]
 
 class ChatResponse(BaseModel):
     response: str
     sources: List[str]
+    confidence: Optional[float] = None
+    confidenceLabel: Optional[str] = None
+    whyThisAnswer: Optional[str] = None
+    highlights: List[SourceHighlight] = []
+    schemes: List[SchemeRecommendation] = []
+    comparison: Optional[ComparisonMode] = None
+    documentInsights: List[DocumentInsight] = []
+    actionPlan: Optional[ActionPlan] = None
+    cached: bool = False
 
 class UploadResponse(BaseModel):
     status: str
@@ -177,7 +234,12 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
         history = [msg.dict() for msg in request.history] if request.history else None
         
         # Get bot response
-        result = bot.get_response(request.message, profile=profile_dict, history=history)
+        result = bot.get_response(
+            request.message,
+            profile=profile_dict,
+            history=history,
+            source_filter=request.sourceFilter
+        )
         
         # Calculate response time
         response_time = time.time() - start_time
@@ -208,7 +270,16 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
         
         return ChatResponse(
             response=result["response"],
-            sources=result["sources"]
+            sources=result["sources"],
+            confidence=result.get("confidence"),
+            confidenceLabel=result.get("confidenceLabel"),
+            whyThisAnswer=result.get("whyThisAnswer"),
+            highlights=result.get("highlights", []),
+            schemes=result.get("schemes", []),
+            comparison=result.get("comparison"),
+            documentInsights=result.get("documentInsights", []),
+            actionPlan=result.get("actionPlan"),
+            cached=result.get("cached", False),
         )
     except RuntimeError as e:
         print(f"❌ Runtime Error: {str(e)}")
@@ -235,7 +306,12 @@ def chat_stream(request: ChatRequest):
         profile_dict = request.profile.dict() if request.profile else None
         history = [msg.dict() for msg in request.history] if request.history else None
 
-        token_iter, sources = bot.stream_response(request.message, profile=profile_dict, history=history)
+        token_iter, sources, metadata = bot.stream_response(
+            request.message,
+            profile=profile_dict,
+            history=history,
+            source_filter=request.sourceFilter
+        )
 
         def event_stream():
             token_count = 0
@@ -246,6 +322,7 @@ def chat_stream(request: ChatRequest):
                         yield f"event: token\ndata: {json.dumps(token)}\n\n"
                 print(f"📤 Streamed {token_count} tokens")
                 yield f"event: sources\ndata: {json.dumps(sources)}\n\n"
+                yield f"event: meta\ndata: {json.dumps(metadata)}\n\n"
                 yield "event: done\ndata: [DONE]\n\n"
             except Exception as e:
                 print(f"❌ Stream error: {e}")
@@ -260,16 +337,16 @@ def chat_stream(request: ChatRequest):
 
 
 @app.post("/api/upload", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...), user_id: Optional[str] = None, db: Session = Depends(get_db)):
-    """Upload and index a document (PDF, CSV, TXT)"""
+async def upload_document(file: UploadFile = File(...), user_id: Optional[str] = Form(None), db: Session = Depends(get_db)):
+    """Upload and index a document (PDF, CSV, TXT, MD, DOCX)"""
     try:
         bot = get_bot()
         if not bot._initialized:
-            # Initialize bot on first request
-            bot.initialize(auto_index=True)
+            # Initialize bot quickly on first upload (skip full auto-index scan)
+            bot.initialize(auto_index=False)
         
         # Validate file type
-        allowed_extensions = [".pdf", ".csv", ".txt", ".md"]
+        allowed_extensions = [".pdf", ".csv", ".txt", ".md", ".docx"]
         file_ext = os.path.splitext(file.filename)[1].lower()
         
         if file_ext not in allowed_extensions:

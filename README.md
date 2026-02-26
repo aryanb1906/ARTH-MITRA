@@ -759,15 +759,15 @@ Total Potential Saving: ₹5,00,000+ over loan tenure!
 
 ### System Performance Benchmarks
 
-Our RAG (Retrieval-Augmented Generation) system has been rigorously tested with comprehensive performance metrics:
+Our RAG (Retrieval-Augmented Generation) system has been benchmarked twice and compared to show progress over time.
 
 #### **System Configuration**
-- **Documents Indexed**: 11,132 financial documents
+- **Documents Indexed (Latest)**: 16,919 financial documents
 - **AI Model**: OpenRouter (gpt-4o-mini)
 - **Vector Database**: ChromaDB
 - **Status**: ✅ Fully Operational
 
-#### **Response Time Performance**
+#### **Response Time Performance (Latest Run: Feb 26, 2026)**
 
 <table>
 <tr>
@@ -777,11 +777,11 @@ Our RAG (Retrieval-Augmented Generation) system has been rigorously tested with 
 
 | Query Type | Response Time |
 |-----------|---------------|
-| PPF Information | 12.37s |
-| NPS Schemes | 12.40s |
-| ELSS Tax Benefits | 13.50s |
-| 80C Deductions | 12.83s |
-| **Average** | **12.78s** |
+| PPF Information | 14.79s |
+| NPS Schemes | 12.19s |
+| ELSS Tax Benefits | 12.82s |
+| 80C Deductions | 19.68s |
+| **Average** | **14.87s** |
 
 </td>
 <td>
@@ -790,54 +790,64 @@ Our RAG (Retrieval-Augmented Generation) system has been rigorously tested with 
 
 | Query Type | Response Time | Speedup |
 |-----------|---------------|---------|
-| PPF Information | 2.14s | ⚡ **5.8x** |
-| NPS Schemes | 2.69s | ⚡ **4.6x** |
-| ELSS Tax Benefits | 2.77s | ⚡ **4.9x** |
-| 80C Deductions | ~2.50s | ⚡ **5.1x** |
-| **Average** | **2.53s** | ⚡ **5.05x** |
+| PPF Information | 2.03s | ⚡ **7.3x** |
+| NPS Schemes | 2.06s | ⚡ **5.9x** |
+| ELSS Tax Benefits | 2.05s | ⚡ **6.3x** |
+| 80C Deductions | 2.05s | ⚡ **9.6x** |
+| **Average** | **2.05s** | ⚡ **7.3x** |
 
 </td>
 </tr>
 </table>
 
+#### **Old vs New (Baseline Comparison)**
+
+| Metric | Old (Feb 16) | New (Feb 26) | Delta | Outcome |
+|--------|--------------|--------------|-------|---------|
+| Documents Indexed | 11,132 | 16,919 | +5,787 | Larger knowledge coverage |
+| Avg Cold Query | 12.78s | 14.87s | +2.09s | Slower cold-start |
+| Avg Cached Query | 2.53s | 2.05s | -0.48s | Faster repeat queries |
+| Cache Speedup | 5.05x | 7.3x | +2.25x | Better cache effect |
+| Speed Improvement | 80.2% | 86.2% | +6.0 pp | Stronger repeat UX |
+
 #### **Key Performance Indicators**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  🎯  Cache Performance:        80% faster on repeat queries  │
+│  🎯  Cache Performance:        86.2% faster on repeat queries│
 │  ✅  Success Rate:             100% (zero errors)            │
-│  📊  Average Speedup:          5.05x for cached queries      │
-│  🔍  Source Retrieval:         3 relevant docs per query     │
-│  💾  Documents Searchable:     11,132 indexed documents      │
-│  ⚡  Time Saved per Cache:     ~10.25 seconds average        │
+│  📊  Average Speedup:          7.3x for cached queries       │
+│  🔍  Source Retrieval:         Multi-source retrieval         │
+│  💾  Documents Searchable:     16,919 indexed documents      │
+│  ⚡  Time Saved per Cache:     ~12.82 seconds average        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 #### **Performance Highlights**
 
-✅ **Excellent Cache Efficiency**: 80% reduction in response time for repeat queries  
+✅ **Excellent Cache Efficiency**: 86.2% reduction in response time for repeat queries  
 ✅ **High Reliability**: 100% success rate with zero errors during testing  
-✅ **Multi-Source Validation**: Average of 3 relevant sources per query  
-✅ **Scalable Architecture**: Handles 11K+ documents efficiently  
+✅ **Improved Cached Latency**: 2.05s average on repeat queries  
+✅ **Scalable Architecture**: Handles 16K+ documents efficiently  
 ✅ **Consistent Performance**: Stable response times across different query types
 
 #### **Real-World Impact**
 
 | Metric | Value | Business Impact |
 |--------|-------|-----------------|
-| **First-Time Users** | ~12.8s | Acceptable for complex financial queries |
-| **Returning Users** | ~2.5s | Excellent UX for repeat questions |
-| **API Cost Savings** | 5x | Reduced LLM API calls via caching |
-| **Popular Query Speed** | 80% faster | Improved engagement & retention |
+| **First-Time Users** | ~14.9s | Acceptable but needs cold-start optimization |
+| **Returning Users** | ~2.1s | Excellent UX for repeat questions |
+| **API Cost Savings** | 7.3x | Significantly reduced LLM API calls via caching |
+| **Popular Query Speed** | 86.2% faster | Improved engagement & retention |
 
 #### **Comparative Performance**
 
 | Benchmark | ARTH-MITRA | Industry Average | Result |
 |-----------|------------|------------------|--------|
-| Cold Start Query | 12.78s | 10-15s | ✅ Within range |
-| Cached Query | 2.53s | 3-5s | ⚡ Above average |
-| Cache Speedup | 5.05x | 2-3x | ⚡ Excellent |
-| Document Volume | 11,132 | 1K-5K | ⚡ Advanced |
+| Cold Start Query | 14.87s | 10-15s | ✅ Within range |
+| Cached Query | 2.05s | 3-5s | ⚡ Above average |
+| Cache Speedup | 7.3x | 2-3x | ⚡ Excellent |
+| Document Volume | 16,919 | 1K-5K | ⚡ Advanced |
 | Success Rate | 100% | 95-98% | ⚡ Exceptional |
 
 > 📊 **Full Performance Report**: See [PERFORMANCE_METRICS.md](backend/PERFORMANCE_METRICS.md) for detailed analysis, test methodology, and optimization recommendations.
@@ -1331,11 +1341,11 @@ We appreciate all contributors who have helped make Arth-Mitra better!
 - ✅ Document query analytics dashboard
 
 ### Phase 2: Core Features (Current) 🚧
-- ⏳ Backend API optimization
-- ⏳ Enhanced RAG pipeline with multi-source retrieval
-- ⏳ User authentication & registration
+- ✅ Backend API optimization
+- ✅ Enhanced RAG pipeline with multi-source retrieval
+- ✅ User authentication & registration
 - ✅ Advanced tax calculator (old vs new regime)
-- ⏳ Scheme eligibility checker with recommendations
+- ✅ Scheme eligibility checker with recommendations
 - ✅ Query history with export functionality
 - ✅ Streaming chat responses with token-by-token display
 - ✅ Chat memory and context persistence
@@ -1343,11 +1353,18 @@ We appreciate all contributors who have helped make Arth-Mitra better!
 - ✅ Pinned chart snapshots with chart type toggle
 - ✅ Export charts as PNG
 - ✅ Resizable sidebar panels
+- ✅ Source-chip click to enable document-only mode
+- ✅ Per-answer source copy action
+- ✅ Trust-layer export metadata (confidence, why-answer, sources)
+- ✅ Chat export options (HTML + PDF)
+- ✅ Sticky + sortable comparison tables
+- ✅ Pin important AI responses to top of session
+- ✅ Expand/collapse source highlight snippets
 
 ### Phase 3: Advanced Features (Planned) 📅
 - 🔮 Multilingual support (Hindi, Tamil, Telugu, Kannada, Marathi)
 - 🔮 Mobile applications (iOS & Android)
-- 🔮 Document upload and automatic analysis
+- ✅ Document upload and automatic analysis
 - 🔮 Personalized financial dashboard with insights
 - 🔮 Step-by-step tax filing assistance
 - 🔮 Real-time tax law update notifications

@@ -51,6 +51,44 @@
 
 **Average Cached Response**: **2.53 seconds**
 
+---
+
+## 🔄 Re-Run Benchmark (February 26, 2026)
+
+### Current Test Run Summary (`python test_performance.py`)
+
+| Query | First Run | Cached Run | Speedup |
+|---|---:|---:|---:|
+| What is PPF? | 14.79s | 2.03s | 7.3x |
+| Tell me about NPS scheme | 12.19s | 2.06s | 5.9x |
+| What are the tax benefits of ELSS? | 12.82s | 2.05s | 6.3x |
+| How does 80C deduction work? | 19.68s | 2.05s | 9.6x |
+| **Average** | **14.87s** | **2.05s** | **7.3x** |
+
+### Profile Query Benchmark
+
+| Scenario | Time |
+|---|---:|
+| Profile query (first) | 17.87s |
+| Profile query (cached) | 2.06s |
+| **Profile speedup** | **8.7x** |
+
+### Compared to Previous Baseline (Feb 16, 2026)
+
+| Metric | Old Baseline | New Run | Delta | Interpretation |
+|---|---:|---:|---:|---|
+| Documents Indexed | 11,132 | 16,919 | +5,787 | Larger corpus coverage |
+| Avg First-Time Query | 12.78s | 14.87s | +2.09s | Cold queries slower |
+| Avg Cached Query | 2.53s | 2.05s | -0.48s | Cached queries faster |
+| Cache Speedup | 5.05x | 7.3x | +2.25x | Better cache leverage |
+| Speed Improvement | 80.2% | 86.2% | +6.0 pp | Higher repeat-query gain |
+
+### Key Takeaways from Comparison
+
+- Cache behavior improved significantly (faster cached responses and higher speedup factor).
+- Cold-start time increased, likely due to larger indexed document volume and broader retrieval context.
+- Overall production behavior remains strong for repeat usage patterns, which dominate practical chatbot sessions.
+
 #### Cache Performance Breakdown:
 - Query hash lookup: ~0.1s
 - Cache hit validation: ~0.05s

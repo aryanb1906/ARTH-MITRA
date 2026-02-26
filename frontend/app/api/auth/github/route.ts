@@ -5,9 +5,8 @@ export async function GET() {
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/github/callback`;
 
   if (!clientId) {
-    return NextResponse.json(
-      { error: 'GitHub OAuth not configured' },
-      { status: 500 }
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/login?error=github_oauth_not_configured`
     );
   }
 

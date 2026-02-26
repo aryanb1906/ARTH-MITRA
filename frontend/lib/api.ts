@@ -29,6 +29,51 @@ api.interceptors.response.use(
 export interface ChatResponse {
   response: string;
   sources: string[];
+  confidence?: number;
+  confidenceLabel?: 'low' | 'medium' | 'high' | string;
+  whyThisAnswer?: string;
+  highlights?: { source: string; snippet: string }[];
+  schemes?: {
+    name: string;
+    score: number;
+    reason: string;
+    eligibility: string;
+    nextStep: string;
+    missingCriteria?: string[];
+  }[];
+  comparison?: {
+    schemeA: {
+      name: string;
+      score: number;
+      pros: string[];
+      cons: string[];
+      fit: string;
+    };
+    schemeB: {
+      name: string;
+      score: number;
+      pros: string[];
+      cons: string[];
+      fit: string;
+    };
+    recommendedFit: string;
+  } | null;
+  documentInsights?: {
+    field: string;
+    value: string;
+    source: string;
+  }[];
+  actionPlan?: {
+    title: string;
+    steps: string[];
+    reminders: {
+      title: string;
+      dueDate: string;
+      frequency: string;
+      category: string;
+    }[];
+  } | null;
+  cached?: boolean;
 }
 
 export interface UserProfile {
@@ -267,7 +312,8 @@ export async function sendMessage(
   profile?: UserProfile,
   history?: ChatHistoryMessage[],
   userId?: string,
-  sessionId?: string
+  sessionId?: string,
+  sourceFilter?: string
 ): Promise<ChatResponse> {
   const { data } = await api.post<ChatResponse>('/api/chat', {
     message,
@@ -275,6 +321,7 @@ export async function sendMessage(
     history,
     userId,
     sessionId,
+    sourceFilter,
   });
 
   // Handle response format (may have nested structure from Gemini)
@@ -296,8 +343,10 @@ export async function sendMessageStream(
   history: ChatHistoryMessage[],
   onToken: (token: string) => void,
   onSources: (sources: string[]) => void,
+  onMeta?: (meta: Omit<ChatResponse, 'response' | 'sources'>) => void,
   userId?: string,
-  sessionId?: string
+  sessionId?: string,
+  sourceFilter?: string
 ): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
@@ -311,6 +360,7 @@ export async function sendMessageStream(
         history,
         userId,
         sessionId,
+        sourceFilter,
       }),
     });
 
@@ -349,6 +399,8 @@ export async function sendMessageStream(
           onToken(JSON.parse(data));
         } else if (event === 'sources') {
           onSources(JSON.parse(data));
+        } else if (event === 'meta') {
+          onMeta?.(JSON.parse(data));
         } else if (event === 'error') {
           throw new Error(JSON.parse(data));
         } else if (event === 'done') {
@@ -357,9 +409,20 @@ export async function sendMessageStream(
       }
     }
   } catch (error) {
-    const fallback = await sendMessage(message, profile, history);
+    const fallback = await sendMessage(message, profile, history, userId, sessionId, sourceFilter);
     onToken(fallback.response);
     onSources(fallback.sources || []);
+    onMeta?.({
+      confidence: fallback.confidence,
+      confidenceLabel: fallback.confidenceLabel,
+      whyThisAnswer: fallback.whyThisAnswer,
+      highlights: fallback.highlights,
+      schemes: fallback.schemes,
+      comparison: fallback.comparison,
+      documentInsights: fallback.documentInsights,
+      actionPlan: fallback.actionPlan,
+      cached: fallback.cached,
+    });
   }
 }
 
@@ -367,7 +430,7 @@ export async function uploadDocument(file: File, userId?: string): Promise<Uploa
   const formData = new FormData();
   formData.append('file', file);
   if (userId) {
-    formData.append('userId', userId);
+    formData.append('user_id', userId);
   }
 
   // Create a separate axios instance for FormData without default headers

@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X, Pencil, Check, Copy, Shuffle } from 'lucide-react'
-import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile, updateChatSessionTitle } from '@/lib/api'
+import { ArrowLeft, ArrowDown, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X, Pencil, Check, Copy, Shuffle } from 'lucide-react'
+import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile, updateChatSessionTitle, getUserDocuments } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
 import { UserMenu } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
@@ -45,6 +45,7 @@ import {
   Legend,
 } from 'recharts'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { cleanSnippetText, SourceWithTooltip } from './chat-utils'
 
 interface Message {
   id: string
@@ -52,6 +53,49 @@ interface Message {
   content: string
   timestamp: Date
   sources?: string[]
+  confidence?: number
+  confidenceLabel?: 'low' | 'medium' | 'high' | string
+  whyThisAnswer?: string
+  highlights?: { source: string; snippet: string }[]
+  schemes?: {
+    name: string
+    score: number
+    reason: string
+    eligibility: string
+    nextStep: string
+    missingCriteria?: string[]
+  }[]
+  comparison?: {
+    schemeA: {
+      name: string
+      score: number
+      pros: string[]
+      cons: string[]
+      fit: string
+    }
+    schemeB: {
+      name: string
+      score: number
+      pros: string[]
+      cons: string[]
+      fit: string
+    }
+    recommendedFit: string
+  } | null
+  documentInsights?: { field: string; value: string; source: string }[]
+  actionPlan?: {
+    title: string
+    steps: string[]
+    reminders: {
+      title: string
+      dueDate: string
+      frequency: string
+      category: string
+    }[]
+  } | null
+  cached?: boolean
+  queryScope?: 'all' | 'selected'
+  queryDocument?: string
 }
 
 interface RecentQuery {
@@ -63,6 +107,7 @@ interface RecentQuery {
 
 type ChartType = 'bar' | 'line' | 'pie'
 type ChartMode = 'response' | 'sources'
+type ComparisonSort = 'default' | 'field-asc' | 'field-desc'
 
 interface ChartDatum {
   label: string
@@ -110,10 +155,21 @@ export default function ChatPage() {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [lastUploadedFile, setLastUploadedFile] = useState<string>('')
+  const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([])
+  const [documentOnlyMode, setDocumentOnlyMode] = useState(false)
+  const [selectedDocumentFilter, setSelectedDocumentFilter] = useState<string>('')
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const shouldAutoScrollRef = useRef(true)
+  const lastScrollTopRef = useRef(0)
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const inputFieldRef = useRef<HTMLInputElement>(null)
   const [bookmarks, setBookmarks] = useState<string[]>([])
+  const [pinnedMessageIds, setPinnedMessageIds] = useState<string[]>([])
+  const [copiedSourcesMessageId, setCopiedSourcesMessageId] = useState<string | null>(null)
+  const [expandedSnippets, setExpandedSnippets] = useState<Record<string, boolean>>({})
+  const [comparisonSortByMessage, setComparisonSortByMessage] = useState<Record<string, ComparisonSort>>({})
   const [chartData, setChartData] = useState<ChartDatum[]>([])
   const [chartType, setChartType] = useState<ChartType>('bar')
   const [chartUnit, setChartUnit] = useState('')
@@ -169,7 +225,24 @@ export default function ChatPage() {
 
     const initializeChat = async () => {
       // Get userId from localStorage
-      const storedUserId = localStorage.getItem('userId')
+      let storedUserId = localStorage.getItem('userId')
+
+      // Fallback: recover from cookie-based auth session
+      if (!storedUserId) {
+        try {
+          const res = await fetch('/api/auth/me')
+          const data = await res.json()
+          if (data?.user?.id) {
+            storedUserId = data.user.id
+            localStorage.setItem('userId', data.user.id)
+            localStorage.setItem('userEmail', data.user.email || '')
+            localStorage.setItem('userName', data.user.name || '')
+          }
+        } catch (error) {
+          console.error('Failed to restore user from session:', error)
+        }
+      }
+
       if (!storedUserId) {
         // No user ID - redirect to login
         router.push('/login')
@@ -498,13 +571,55 @@ export default function ChatPage() {
     { id: '3', title: 'Investment portfolio allocation', timestamp: '11/02/2026', category: 'investment' }
   ]
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const isNearBottom = () => {
+    const container = messagesContainerRef.current
+    if (!container) return true
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    return distanceFromBottom < 120
+  }
+
+  const handleMessagesScroll = () => {
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    const currentTop = container.scrollTop
+    if (currentTop < lastScrollTopRef.current - 2) {
+      shouldAutoScrollRef.current = false
+      setShowJumpToLatest(true)
+    } else {
+      const nearBottom = isNearBottom()
+      shouldAutoScrollRef.current = nearBottom
+      setShowJumpToLatest(!nearBottom)
+    }
+    lastScrollTopRef.current = currentTop
+  }
+
+  const handleMessagesWheelCapture = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (event.deltaY < 0) {
+      shouldAutoScrollRef.current = false
+      setShowJumpToLatest(true)
+    }
+  }
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
   }
 
   useEffect(() => {
-    scrollToBottom()
+    if (!shouldAutoScrollRef.current) return
+    scrollToBottom(isLoading ? 'auto' : 'smooth')
+    setShowJumpToLatest(false)
+  }, [messages, isLoading])
+
+  useEffect(() => {
+    setPinnedMessageIds(prev => prev.filter(id => messages.some(msg => msg.id === id && msg.type === 'ai')))
   }, [messages])
+
+  const handleJumpToLatest = () => {
+    shouldAutoScrollRef.current = true
+    setShowJumpToLatest(false)
+    scrollToBottom('smooth')
+  }
 
   const handleSendMessage = async () => {
     if (!input.trim()) return
@@ -533,14 +648,20 @@ export default function ChatPage() {
       }))
 
     const aiMessageId = (Date.now() + 1).toString()
+    const activeDocFilter = documentOnlyMode && selectedDocumentFilter ? selectedDocumentFilter : undefined
     const aiMessage: Message = {
       id: aiMessageId,
       type: 'ai',
       content: '',
       timestamp: new Date(),
-      sources: []
+      sources: [],
+      highlights: [],
+      schemes: [],
+      queryScope: activeDocFilter ? 'selected' : 'all',
+      queryDocument: activeDocFilter
     }
 
+    shouldAutoScrollRef.current = true
     setMessages(prev => [...prev, userMessage, aiMessage])
     const userInput = input
     setInput('')
@@ -572,8 +693,27 @@ export default function ChatPage() {
               : msg
           ))
         },
+        (meta) => {
+          setMessages(prev => prev.map(msg =>
+            msg.id === aiMessageId
+              ? {
+                ...msg,
+                confidence: meta.confidence,
+                confidenceLabel: meta.confidenceLabel,
+                whyThisAnswer: meta.whyThisAnswer,
+                highlights: meta.highlights || [],
+                schemes: meta.schemes || [],
+                comparison: meta.comparison,
+                documentInsights: meta.documentInsights || [],
+                actionPlan: meta.actionPlan,
+                cached: meta.cached,
+              }
+              : msg
+          ))
+        },
         userId || undefined,
-        sessionId || undefined
+        sessionId || undefined,
+        activeDocFilter
       )
     } catch (error) {
       console.error('Chat error:', error)
@@ -629,6 +769,325 @@ export default function ChatPage() {
     }
   }
 
+  const handleSourceChipClick = (source: string) => {
+    setSelectedDocumentFilter(source)
+    setDocumentOnlyMode(true)
+    setUploadedDocuments(prev => (prev.includes(source) ? prev : [source, ...prev]))
+  }
+
+  const handleCopySources = async (message: Message) => {
+    if (!message.sources || message.sources.length === 0) return
+
+    const uniqueSources = Array.from(new Set(message.sources))
+    const text = [
+      `Sources (${uniqueSources.length})`,
+      ...uniqueSources.map((source, index) => `${index + 1}. ${source}`),
+    ].join('\n')
+
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedSourcesMessageId(message.id)
+      setTimeout(() => setCopiedSourcesMessageId(null), 1600)
+    } catch {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopiedSourcesMessageId(message.id)
+      setTimeout(() => setCopiedSourcesMessageId(null), 1600)
+    }
+  }
+
+  const toggleSnippet = (messageId: string, highlightIndex: number) => {
+    const key = `${messageId}-${highlightIndex}`
+    setExpandedSnippets(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }))
+  }
+
+  const togglePinMessage = (messageId: string) => {
+    setPinnedMessageIds(prev =>
+      prev.includes(messageId)
+        ? prev.filter(id => id !== messageId)
+        : [messageId, ...prev]
+    )
+  }
+
+  const getComparisonRows = (message: Message) => {
+    if (!message.comparison) return [] as Array<{ field: string; a: string; b: string; wide?: boolean }>
+
+    const rows = [
+      {
+        field: 'Score',
+        a: `${message.comparison.schemeA.score}/100`,
+        b: `${message.comparison.schemeB.score}/100`,
+      },
+      {
+        field: 'Pros',
+        a: message.comparison.schemeA.pros.join('; ') || '—',
+        b: message.comparison.schemeB.pros.join('; ') || '—',
+      },
+      {
+        field: 'Cons',
+        a: message.comparison.schemeA.cons.join('; ') || '—',
+        b: message.comparison.schemeB.cons.join('; ') || '—',
+      },
+      {
+        field: 'Recommended fit',
+        a: message.comparison.recommendedFit,
+        b: '',
+        wide: true,
+      },
+    ]
+
+    const sortMode = comparisonSortByMessage[message.id] || 'default'
+    if (sortMode === 'default') return rows
+
+    const sortableRows = [...rows].sort((left, right) =>
+      sortMode === 'field-asc'
+        ? left.field.localeCompare(right.field)
+        : right.field.localeCompare(left.field)
+    )
+
+    return sortableRows
+  }
+
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+
+  const inlineMarkdownToHtml = (value: string) =>
+    escapeHtml(value)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+
+  const markdownTableToHtml = (tableLines: string[]) => {
+    const rows = tableLines
+      .map(line => line.trim().replace(/^\|/, '').replace(/\|$/, ''))
+      .map(line => line.split('|').map(cell => cell.trim()))
+
+    if (rows.length === 0) return ''
+
+    const header = rows[0]
+    const bodyRows = rows.slice(1).filter(cells => !cells.every(cell => /^:?-{3,}:?$/.test(cell.replace(/\s/g, ''))))
+
+    return `
+      <table class="md-table">
+        <thead>
+          <tr>${header.map(cell => `<th>${inlineMarkdownToHtml(cell)}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${bodyRows
+        .map(cells => `<tr>${cells.map(cell => `<td>${inlineMarkdownToHtml(cell)}</td>`).join('')}</tr>`)
+        .join('')}
+        </tbody>
+      </table>
+    `
+  }
+
+  const markdownToPrintableHtml = (content: string) => {
+    const normalized = content.replace(/<br\s*\/?>/gi, '\n')
+    const lines = normalized.split('\n')
+    const chunks: string[] = []
+    let index = 0
+
+    while (index < lines.length) {
+      const rawLine = lines[index]
+      const line = rawLine.trim()
+
+      if (!line) {
+        index += 1
+        continue
+      }
+
+      if (line.startsWith('|')) {
+        const tableLines: string[] = []
+        while (index < lines.length && lines[index].trim().startsWith('|')) {
+          tableLines.push(lines[index])
+          index += 1
+        }
+        chunks.push(markdownTableToHtml(tableLines))
+        continue
+      }
+
+      const headingMatch = line.match(/^(#{1,4})\s+(.+)/)
+      if (headingMatch) {
+        const level = Math.min(4, headingMatch[1].length)
+        chunks.push(`<h${level} class="md-h${level}">${inlineMarkdownToHtml(headingMatch[2])}</h${level}>`)
+        index += 1
+        continue
+      }
+
+      if (/^[-*]\s+/.test(line)) {
+        const listItems: string[] = []
+        while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
+          listItems.push(lines[index].trim().replace(/^[-*]\s+/, ''))
+          index += 1
+        }
+        chunks.push(`<ul class="md-ul">${listItems.map(item => `<li>${inlineMarkdownToHtml(item)}</li>`).join('')}</ul>`)
+        continue
+      }
+
+      chunks.push(`<p>${inlineMarkdownToHtml(line)}</p>`)
+      index += 1
+    }
+
+    return chunks.join('')
+  }
+
+  const buildPrintableDocument = () => {
+    const printable = messages
+      .map(message => {
+        const comparisonBlock = message.type === 'ai' && message.comparison
+          ? `
+            <div class="meta-block">
+              <p class="meta-title"><strong>Scheme Comparison</strong></p>
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>${escapeHtml(message.comparison.schemeA.name)}</th>
+                    <th>${escapeHtml(message.comparison.schemeB.name)}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Score</td>
+                    <td>${escapeHtml(`${message.comparison.schemeA.score}/100`)}</td>
+                    <td>${escapeHtml(`${message.comparison.schemeB.score}/100`)}</td>
+                  </tr>
+                  <tr>
+                    <td>Pros</td>
+                    <td>${escapeHtml(message.comparison.schemeA.pros.join('; ') || '—')}</td>
+                    <td>${escapeHtml(message.comparison.schemeB.pros.join('; ') || '—')}</td>
+                  </tr>
+                  <tr>
+                    <td>Cons</td>
+                    <td>${escapeHtml(message.comparison.schemeA.cons.join('; ') || '—')}</td>
+                    <td>${escapeHtml(message.comparison.schemeB.cons.join('; ') || '—')}</td>
+                  </tr>
+                  <tr>
+                    <td>Recommended Fit</td>
+                    <td colspan="2">${escapeHtml(message.comparison.recommendedFit)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `
+          : ''
+
+        const insightsBlock = message.type === 'ai' && message.documentInsights && message.documentInsights.length > 0
+          ? `
+            <div class="meta-block">
+              <p class="meta-title"><strong>Document Insights</strong></p>
+              <ul class="md-ul">${message.documentInsights
+            .map(insight => `<li>${escapeHtml(`${insight.field}: ${insight.value} (Source: ${insight.source})`)}</li>`)
+            .join('')}</ul>
+            </div>
+          `
+          : ''
+
+        const actionPlanBlock = message.type === 'ai' && message.actionPlan
+          ? `
+            <div class="meta-block">
+              <p class="meta-title"><strong>${escapeHtml(message.actionPlan.title || 'Action Plan')}</strong></p>
+              <ul class="md-ul">${message.actionPlan.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ul>
+              ${message.actionPlan.reminders.length > 0
+            ? `<p class="meta-title"><strong>Upcoming Reminders</strong></p><ul class="md-ul">${message.actionPlan.reminders.map(reminder => `<li>${escapeHtml(`${reminder.title} — ${reminder.dueDate}`)}</li>`).join('')}</ul>`
+            : ''}
+            </div>
+          `
+          : ''
+
+        const trust = message.type === 'ai'
+          ? `
+            <div class="meta">
+              ${typeof message.confidence === 'number' ? `<p><strong>Confidence:</strong> ${Math.round(message.confidence * 100)}% (${escapeHtml(String(message.confidenceLabel || 'n/a'))})</p>` : ''}
+              ${message.sources?.length ? `<p><strong>Sources:</strong> ${message.sources.map(escapeHtml).join(', ')}</p>` : ''}
+              ${message.whyThisAnswer ? `<p><strong>Why this answer:</strong> ${escapeHtml(message.whyThisAnswer)}</p>` : ''}
+              ${comparisonBlock}
+              ${insightsBlock}
+              ${actionPlanBlock}
+            </div>
+          `
+          : ''
+
+        return `
+          <article class="msg">
+            <h3>${message.type === 'user' ? 'User' : 'Arth Mitra'} • ${escapeHtml(message.timestamp.toLocaleString())}</h3>
+            <div class="msg-content">${markdownToPrintableHtml(message.content)}</div>
+            ${trust}
+          </article>
+        `
+      })
+      .join('')
+
+    return `
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <title>Arth-Mitra Chat Export</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+            h1 { font-size: 20px; margin-bottom: 16px; }
+            .msg { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+            .msg h3 { margin: 0 0 8px 0; font-size: 14px; }
+            .msg p { margin: 0; font-size: 13px; line-height: 1.5; }
+            .msg-content { font-size: 13px; line-height: 1.55; }
+            .msg-content p { margin: 0 0 8px 0; }
+            .msg-content .md-h1, .msg-content .md-h2, .msg-content .md-h3, .msg-content .md-h4 { margin: 8px 0 6px 0; font-weight: 700; }
+            .msg-content .md-h1 { font-size: 18px; }
+            .msg-content .md-h2 { font-size: 16px; }
+            .msg-content .md-h3 { font-size: 15px; }
+            .msg-content .md-h4 { font-size: 14px; }
+            .msg-content .md-ul { margin: 0 0 8px 18px; padding: 0; }
+            .msg-content .md-ul li { margin: 0 0 4px 0; }
+            .msg-content .md-table { width: 100%; border-collapse: collapse; margin: 8px 0; table-layout: fixed; }
+            .msg-content .md-table th, .msg-content .md-table td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; vertical-align: top; word-break: break-word; }
+            .msg-content .md-table th { background: #f8fafc; font-weight: 700; }
+            .meta { margin-top: 8px; font-size: 12px; color: #374151; }
+            .meta p { margin: 3px 0; }
+            .meta-block { margin-top: 10px; }
+            .meta-title { margin: 6px 0; color: #111827; }
+          </style>
+        </head>
+        <body>
+          <h1>Arth-Mitra Chat Export</h1>
+          ${printable}
+        </body>
+      </html>
+    `
+  }
+
+  const exportChatAsHtml = () => {
+    const htmlDocument = buildPrintableDocument()
+    const blob = new Blob([htmlDocument], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `arth-mitra-chat-${Date.now()}.html`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportChatAsPdf = () => {
+    const htmlDocument = buildPrintableDocument()
+    const popup = window.open('', '_blank')
+    if (!popup) return
+
+    popup.document.write(htmlDocument)
+    popup.document.close()
+    popup.focus()
+    popup.print()
+  }
+
   const handleCreateChartFromMessage = (message: Message) => {
     const inferred = inferChartData(message.content)
     if (inferred.data.length === 0) return
@@ -658,6 +1117,25 @@ export default function ChatPage() {
     inputFieldRef.current?.focus()
   }
 
+  const handleCompareQuickAction = () => {
+    const lastAiWithSchemes = [...messages]
+      .reverse()
+      .find(msg => msg.type === 'ai' && msg.schemes && msg.schemes.length >= 2)
+
+    const fallbackA = 'Public Provident Fund (PPF)'
+    const fallbackB = 'National Pension System (NPS)'
+
+    const schemeA = lastAiWithSchemes?.schemes?.[0]?.name || fallbackA
+    const schemeB = lastAiWithSchemes?.schemes?.[1]?.name || fallbackB
+
+    const docScopeText = documentOnlyMode && selectedDocumentFilter
+      ? ` and use only ${selectedDocumentFilter}`
+      : ''
+
+    setInput(`Compare ${schemeA} vs ${schemeB} for my profile in a side-by-side table with pros/cons, missing criteria, and recommended fit${docScopeText}.`)
+    inputFieldRef.current?.focus()
+  }
+
   const handleClearChat = () => {
     if (userId) {
       localStorage.removeItem(`chatHistory_${userId}`)
@@ -668,6 +1146,9 @@ export default function ChatPage() {
     setStreamingMessageId(null)
     setIsLoading(false)
     setVisibleSuggestions([...suggestedQueries])
+    setPinnedMessageIds([])
+    setExpandedSnippets({})
+    setComparisonSortByMessage({})
   }
 
   const handleNewChat = async () => {
@@ -689,6 +1170,9 @@ export default function ChatPage() {
       setLastUploadedFile('')
       setStreamingMessageId(null)
       setIsLoading(false)
+      setPinnedMessageIds([])
+      setExpandedSnippets({})
+      setComparisonSortByMessage({})
 
       // Reload chat sessions to show the new one
       loadChatSessions(userId)
@@ -735,6 +1219,9 @@ export default function ChatPage() {
       setShowSuggestions(false)
       setStreamingMessageId(null)
       setIsLoading(false)
+      setPinnedMessageIds([])
+      setExpandedSnippets({})
+      setComparisonSortByMessage({})
     } catch (error) {
       console.error('Failed to load session:', error)
       alert('Failed to load chat session. Please try again.')
@@ -832,12 +1319,20 @@ export default function ChatPage() {
     setMessages(prev => [...prev, uploadingMessage])
 
     try {
-      const response = await uploadDocument(file)
+      const response = await uploadDocument(file, userId || undefined)
+
+      setUploadedDocuments(prev => {
+        if (prev.includes(file.name)) return prev
+        return [file.name, ...prev]
+      })
+
+      setSelectedDocumentFilter(file.name)
+      setDocumentOnlyMode(true)
 
       // Update the message with success
       setMessages(prev => prev.map(msg =>
         msg.id === uploadingMessage.id
-          ? { ...msg, content: `✅ ${response.message}\n\nYou can now ask questions about the uploaded document.` }
+          ? { ...msg, content: `✅ ${response.message}\n\nYou can now ask questions about the uploaded document. You can also enable Document-only mode below the chat box.` }
           : msg
       ))
 
@@ -864,20 +1359,47 @@ export default function ChatPage() {
     }
   }
 
+  const loadUploadedDocuments = async (uid: string) => {
+    try {
+      const data = await getUserDocuments(uid)
+      const docs = (data?.documents || [])
+        .filter((doc: any) => !!doc?.filename)
+        .map((doc: any) => doc.filename)
+
+      const uniqueDocs = Array.from(new Set(docs)) as string[]
+      setUploadedDocuments(uniqueDocs)
+
+      if (uniqueDocs.length > 0 && !selectedDocumentFilter) {
+        setSelectedDocumentFilter(uniqueDocs[0])
+      }
+    } catch (error) {
+      console.error('Failed to load uploaded documents:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (!userId) return
+    loadUploadedDocuments(userId)
+  }, [userId])
+
+  const pinnedMessages = pinnedMessageIds
+    .map(id => messages.find(message => message.id === id && message.type === 'ai'))
+    .filter((message): message is Message => Boolean(message))
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Toggle Left Sidebar Button */}
       <button
         onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
         className="fixed left-0 top-1/2 -translate-y-1/2 z-20 bg-white border border-border/40 rounded-r-lg p-2 shadow-lg hover:bg-slate-50 transition-all"
-        style={{ marginLeft: isLeftSidebarOpen ? '18rem' : '0' }}
+        style={{ marginLeft: isLeftSidebarOpen ? '16rem' : '0' }}
       >
         {isLeftSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
       </button>
 
       {/* Left Sidebar - Profile & History */}
       {isLeftSidebarOpen && (
-        <div className="w-72 border-r border-border bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm transition-all duration-300">
+        <div className="w-64 border-r border-border bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm transition-all duration-300">
           <div className="p-4 border-b border-border/40">
             <Link href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity mb-4">
               <ArrowLeft className="w-4 h-4" />
@@ -1283,6 +1805,29 @@ export default function ChatPage() {
               </div>
             )}
 
+            {uploadedDocuments.length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Uploaded Documents</h3>
+                <div className="space-y-2">
+                  {uploadedDocuments.map((doc, i) => (
+                    <button
+                      key={`${doc}-${i}`}
+                      onClick={() => {
+                        setSelectedDocumentFilter(doc)
+                        setDocumentOnlyMode(true)
+                      }}
+                      className={`w-full text-left p-2 rounded-lg text-xs transition-colors border ${selectedDocumentFilter === doc && documentOnlyMode
+                        ? 'border-primary/40 bg-primary/5 text-foreground'
+                        : 'border-transparent text-muted-foreground hover:bg-primary/5'
+                        }`}
+                    >
+                      {doc}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Categories</h3>
               <div className="space-y-2">
@@ -1304,10 +1849,10 @@ export default function ChatPage() {
         </div>
       )}
 
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        <ResizablePanel defaultSize={75} minSize={50} className="min-w-[320px]">
+      <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+        <ResizablePanel defaultSize={75} minSize={50} className="min-w-[320px] min-h-0">
           {/* Main Chat Area */}
-          <div className="flex h-full flex-col overflow-hidden">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden">
             {/* Header */}
             <div className="border-b border-border/40 bg-white p-1 md:p-2 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
@@ -1319,7 +1864,7 @@ export default function ChatPage() {
                 <Logo size="md" showText={false} href="/" />
                 <div>
                   <h2 className="text-base font-bold text-foreground">Arth-Mitra Chat</h2>
-                  <p className="text-xs text-muted-foreground">AI Financial Assistant</p>
+                  <p className="text-xs text-muted-foreground">Arth Mitra Financial Assistant</p>
                 </div>
               </div>
               <div className="hidden md:flex items-center gap-4">
@@ -1327,6 +1872,26 @@ export default function ChatPage() {
                   <p className="text-sm font-semibold text-foreground">Income- Rs.{profile.income}</p>
                   <p className="text-xs text-muted-foreground">Age- {profile.age} years</p>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={exportChatAsHtml}
+                  title="Export chat as HTML"
+                >
+                  <FileText className="w-4 h-4" />
+                  HTML
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={exportChatAsPdf}
+                  title="Export chat as PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  PDF
+                </Button>
                 <Button variant="ghost" size="icon" className="hover:bg-primary/10">
                   <RefreshCw className="w-4 h-4" />
                 </Button>
@@ -1335,135 +1900,444 @@ export default function ChatPage() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-              {messages.length === 1 && showSuggestions && (
-                <div className="space-y-4 max-w-3xl">
-                  <div className="text-center py-6">
-                    <div className="text-3xl mb-3">💡</div>
-                    <h2 className="text-xl font-bold text-foreground mb-2">What would you like to know?</h2>
-                    <p className="text-sm text-muted-foreground max-w-md mx-auto">Ask me anything about Indian taxes, investment schemes, or financial planning.</p>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {suggestedQueries.map((query, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleSuggestedQuery(query.text)}
-                        className="text-left p-4 rounded-xl border border-border/40 hover:border-primary/40 hover:bg-primary/5 transition-all group"
+            <div className="relative flex-1 min-h-0">
+              <div
+                ref={messagesContainerRef}
+                onScroll={handleMessagesScroll}
+                onWheelCapture={handleMessagesWheelCapture}
+                className="h-full min-h-0 overflow-x-hidden overflow-y-scroll p-4 md:p-6 space-y-6"
+              >
+                {pinnedMessages.length > 0 && (
+                  <div className="max-w-4xl rounded-xl border border-amber-300/50 bg-amber-50/60 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm font-semibold text-amber-800">📌 Pinned answers</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setPinnedMessageIds([])}
                       >
-                        <div className="flex items-start gap-3">
-                          <span className="text-lg">
-                            {query.category === 'tax' && '📊'}
-                            {query.category === 'pension' && '👴'}
-                            {query.category === 'investment' && '💰'}
-                          </span>
-                          <p className="text-sm text-foreground group-hover:text-primary font-medium transition-colors">{query.text}</p>
+                        Clear all
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {pinnedMessages.map((pinnedMessage) => (
+                        <div key={`pinned-${pinnedMessage.id}`} className="rounded-md border border-amber-200 bg-white p-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="line-clamp-3 text-sm text-foreground">{pinnedMessage.content}</p>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  const element = document.getElementById(`msg-${pinnedMessage.id}`)
+                                  element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                }}
+                                title="Jump to message"
+                              >
+                                <ArrowDown className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => togglePinMessage(pinnedMessage.id)}
+                                title="Unpin"
+                              >
+                                <Pin className="h-3.5 w-3.5 text-amber-700" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                      </button>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex animate-in fade-in-50 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-2xl flex gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
-                      }`}
-                  >
-                    {message.type === 'ai' && (
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0 shadow-md">
-                        <span className="text-white font-bold text-sm">AM</span>
-                      </div>
-                    )}
+                {messages.length === 1 && showSuggestions && (
+                  <div className="space-y-4 max-w-3xl">
+                    <div className="text-center py-6">
+                      <div className="text-3xl mb-3">💡</div>
+                      <h2 className="text-xl font-bold text-foreground mb-2">What would you like to know?</h2>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto">Ask me anything about Indian taxes, investment schemes, or financial planning.</p>
+                    </div>
 
-                    <div>
-                      <div
-                        className={`rounded-2xl px-4 py-3 shadow-sm ${message.type === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-br-none'
-                          : 'bg-muted text-foreground rounded-bl-none border border-border/40'
-                          }`}
-                      >
-                        {message.type === 'user' ? (
-                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                        ) : (
-                          <MarkdownMessage content={message.content} />
-                        )}
-                        <p className={`text-xs mt-2 ${message.type === 'user'
-                          ? 'text-primary-foreground/70'
-                          : 'text-muted-foreground'
-                          }`} suppressHydrationWarning>
-                          {message.timestamp.toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false
-                          })}
-                        </p>
-                      </div>
-
-                      {message.type === 'ai' && message.sources && message.sources.length > 0 && (
-                        <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2 ml-3">
-                          <span>📚 Sources:</span>
-                          {message.sources.map((source, i) => (
-                            <span key={i} className="text-primary font-medium">
-                              {source}{i < message.sources!.length - 1 ? ',' : ''}
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {suggestedQueries.map((query, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSuggestedQuery(query.text)}
+                          className="text-left p-4 rounded-xl border border-border/40 hover:border-primary/40 hover:bg-primary/5 transition-all group"
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="text-lg">
+                              {query.category === 'tax' && '📊'}
+                              {query.category === 'pension' && '👴'}
+                              {query.category === 'investment' && '💰'}
                             </span>
-                          ))}
+                            <p className="text-sm text-foreground group-hover:text-primary font-medium transition-colors">{query.text}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    id={`msg-${message.id}`}
+                    className={`flex animate-in fade-in-50 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[min(92%,64rem)] flex gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
+                        }`}
+                    >
+                      {message.type === 'ai' && (
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                          <span className="text-white font-bold text-sm">AM</span>
+                        </div>
+                      )}
+
+                      <div>
+                        <div
+                          className={`rounded-2xl px-4 py-3 shadow-sm ${message.type === 'user'
+                            ? 'bg-primary text-primary-foreground rounded-br-none'
+                            : 'bg-muted text-foreground rounded-bl-none border border-border/40'
+                            }`}
+                        >
+                          {message.type === 'ai' && (
+                            <div className="mb-2">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${message.queryScope === 'selected'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-green-50 text-green-700'
+                                }`}>
+                                {message.queryScope === 'selected' && message.queryDocument
+                                  ? <SourceWithTooltip source={message.queryDocument} maxLength={40} className="max-w-[20rem] truncate" prefix="Selected document: " />
+                                  : 'All documents'}
+                              </span>
+                              {typeof message.confidence === 'number' && (
+                                <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${message.confidenceLabel === 'high'
+                                  ? 'bg-green-100 text-green-700'
+                                  : message.confidenceLabel === 'medium'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-red-100 text-red-700'
+                                  }`}>
+                                  Confidence: {Math.round(message.confidence * 100)}%
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {message.type === 'user' ? (
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <MarkdownMessage content={message.content} />
+                            </div>
+                          )}
+                          <p className={`text-xs mt-2 ${message.type === 'user'
+                            ? 'text-primary-foreground/70'
+                            : 'text-muted-foreground'
+                            }`} suppressHydrationWarning>
+                            {message.timestamp.toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            })}
+                          </p>
+                        </div>
+
+                        {message.type === 'ai' && message.sources && message.sources.length > 0 && (
+                          <div className="mt-2 text-sm text-muted-foreground flex flex-wrap items-start gap-2 ml-3">
+                            <span className="shrink-0">📚 Sources:</span>
+                            {message.sources.map((source, i) => (
+                              <SourceWithTooltip
+                                key={i}
+                                source={source}
+                                onClick={() => handleSourceChipClick(source)}
+                                className="inline-flex max-w-[16rem] truncate rounded-md bg-muted/70 px-2 py-0.5 text-primary font-medium hover:bg-primary/10 cursor-pointer"
+                              />
+                            ))}
+                          </div>
+                        )}
+
+                        {message.type === 'ai' && message.whyThisAnswer && (
+                          <div className="mt-2 rounded-xl border border-border/40 bg-background p-3 text-sm">
+                            <p className="font-semibold text-foreground mb-1">Why this answer</p>
+                            <p className="text-muted-foreground leading-relaxed">{message.whyThisAnswer}</p>
+                          </div>
+                        )}
+
+                        {message.type === 'ai' && message.highlights && message.highlights.length > 0 && (
+                          <div className="mt-2 rounded-xl border border-border/40 bg-background p-3 text-sm">
+                            <p className="font-semibold text-foreground mb-2">Source highlights</p>
+                            <div className="space-y-2">
+                              {message.highlights.slice(0, 3).map((item, idx) => (
+                                <div key={`${item.source}-${idx}`} className="rounded-md bg-muted/60 p-2">
+                                  <SourceWithTooltip source={item.source} className="block text-sm font-semibold text-primary truncate" />
+                                  {(() => {
+                                    const snippetKey = `${message.id}-${idx}`
+                                    const cleanedSnippet = cleanSnippetText(item.snippet)
+                                    const expanded = !!expandedSnippets[snippetKey]
+                                    const shouldCollapse = cleanedSnippet.length > 220
+                                    return (
+                                      <>
+                                        <p className={`text-muted-foreground mt-1 leading-relaxed whitespace-pre-wrap break-words ${!expanded && shouldCollapse ? 'line-clamp-2' : ''}`}>
+                                          {cleanedSnippet}
+                                        </p>
+                                        {shouldCollapse && (
+                                          <button
+                                            type="button"
+                                            className="mt-1 text-xs font-medium text-primary hover:underline"
+                                            onClick={() => toggleSnippet(message.id, idx)}
+                                          >
+                                            {expanded ? 'Show less' : 'Show full snippet'}
+                                          </button>
+                                        )}
+                                      </>
+                                    )
+                                  })()}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {message.type === 'ai' && message.documentInsights && message.documentInsights.length > 0 && (
+                          <div className="mt-2 rounded-xl border border-border/40 bg-background p-3 text-sm">
+                            <p className="font-semibold text-foreground mb-2">Document insights</p>
+                            <div className="space-y-2">
+                              {message.documentInsights.slice(0, 5).map((insight, idx) => (
+                                <div key={`${insight.field}-${idx}`} className="rounded-md bg-muted/60 p-2">
+                                  <p className="text-sm font-semibold text-primary">{insight.field}</p>
+                                  <p className="text-muted-foreground mt-1">{insight.value}</p>
+                                  <SourceWithTooltip
+                                    source={insight.source}
+                                    className="block text-xs text-muted-foreground/90 mt-1 truncate"
+                                    prefix="Source: "
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {message.type === 'ai' && message.schemes && message.schemes.length > 0 && (
+                          <div className="mt-2 rounded-xl border border-border/40 bg-background p-3 text-sm">
+                            <p className="font-semibold text-foreground mb-2">Top eligible schemes</p>
+                            <div className="space-y-2">
+                              {message.schemes.slice(0, 3).map((scheme) => (
+                                <div key={scheme.name} className="rounded-md bg-muted/60 p-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="font-semibold text-foreground">{scheme.name}</p>
+                                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                                      {scheme.score}/100
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-muted-foreground">{scheme.reason}</p>
+                                  {scheme.missingCriteria && scheme.missingCriteria.length > 0 && (
+                                    <p className="mt-1 text-sm text-amber-700">
+                                      Missing criteria: {scheme.missingCriteria.join(', ')}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {message.type === 'ai' && message.comparison && (
+                          <div className="mt-2 rounded-xl border border-border/40 bg-background p-3 text-sm">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <p className="font-semibold text-foreground">Scheme comparison</p>
+                              <Select
+                                value={comparisonSortByMessage[message.id] || 'default'}
+                                onValueChange={(value) => {
+                                  setComparisonSortByMessage(prev => ({
+                                    ...prev,
+                                    [message.id]: value as ComparisonSort,
+                                  }))
+                                }}
+                              >
+                                <SelectTrigger className="h-7 w-[9rem] text-xs">
+                                  <SelectValue placeholder="Sort fields" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="default">Default order</SelectItem>
+                                  <SelectItem value="field-asc">Field A-Z</SelectItem>
+                                  <SelectItem value="field-desc">Field Z-A</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="max-h-72 overflow-auto">
+                              <table className="w-full text-left text-sm">
+                                <thead className="sticky top-0 z-10 bg-background">
+                                  <tr className="text-muted-foreground">
+                                    <th className="py-1 pr-2">Field</th>
+                                    <th className="py-1 px-2">{message.comparison.schemeA.name}</th>
+                                    <th className="py-1 pl-2">{message.comparison.schemeB.name}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {getComparisonRows(message).map((row) => (
+                                    <tr key={row.field} className="align-top">
+                                      <td className="py-1 pr-2 font-medium">{row.field}</td>
+                                      {row.wide ? (
+                                        <td className="py-1 px-2" colSpan={2}>{row.a}</td>
+                                      ) : (
+                                        <>
+                                          <td className="py-1 px-2">{row.a}</td>
+                                          <td className="py-1 pl-2">{row.b}</td>
+                                        </>
+                                      )}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+
+                        {message.type === 'ai' && message.actionPlan && (
+                          <div className="mt-2 rounded-xl border border-border/40 bg-background p-3 text-sm">
+                            <p className="font-semibold text-foreground mb-2">{message.actionPlan.title}</p>
+                            <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                              {message.actionPlan.steps.slice(0, 4).map((step, idx) => (
+                                <li key={idx}>{step}</li>
+                              ))}
+                            </ul>
+                            {message.actionPlan.reminders.length > 0 && (
+                              <div className="mt-2 border-t border-border/40 pt-2">
+                                <p className="font-semibold text-foreground mb-1">Upcoming reminders</p>
+                                <div className="space-y-1 text-muted-foreground">
+                                  {message.actionPlan.reminders.slice(0, 4).map((reminder, idx) => (
+                                    <p key={`${reminder.title}-${idx}`}>
+                                      • {reminder.title} — {reminder.dueDate}
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {message.type === 'ai' && (
+                        <div className="flex gap-1 mt-1">
+                          <button
+                            onClick={() => handleCopySources(message)}
+                            className="flex-shrink-0 p-2 hover:bg-muted rounded-lg transition-colors"
+                            title="Copy sources"
+                            disabled={!message.sources || message.sources.length === 0}
+                          >
+                            {copiedSourcesMessageId === message.id ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <Copy className={`w-4 h-4 ${message.sources && message.sources.length > 0 ? 'text-muted-foreground' : 'text-muted-foreground/40'}`} />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => togglePinMessage(message.id)}
+                            className="flex-shrink-0 p-2 hover:bg-muted rounded-lg transition-colors"
+                            title={pinnedMessageIds.includes(message.id) ? 'Unpin answer' : 'Pin answer to top'}
+                          >
+                            <Pin
+                              className={`w-4 h-4 ${pinnedMessageIds.includes(message.id)
+                                ? 'fill-amber-500 text-amber-600'
+                                : 'text-muted-foreground'
+                                }`}
+                            />
+                          </button>
+                          <button
+                            onClick={() => toggleBookmark(message.id)}
+                            className="flex-shrink-0 p-2 hover:bg-muted rounded-lg transition-colors"
+                            title={bookmarks.includes(message.id) ? 'Remove bookmark' : 'Save bookmark'}
+                          >
+                            <Bookmark
+                              className={`w-4 h-4 ${bookmarks.includes(message.id)
+                                ? 'fill-accent text-accent'
+                                : 'text-muted-foreground'
+                                }`}
+                            />
+                          </button>
                         </div>
                       )}
                     </div>
-
-                    {message.type === 'ai' && (
-                      <div className="flex gap-1 mt-1">
-                        <button
-                          onClick={() => toggleBookmark(message.id)}
-                          className="flex-shrink-0 p-2 hover:bg-muted rounded-lg transition-colors"
-                          title={bookmarks.includes(message.id) ? 'Remove bookmark' : 'Save bookmark'}
-                        >
-                          <Bookmark
-                            className={`w-4 h-4 ${bookmarks.includes(message.id)
-                              ? 'fill-accent text-accent'
-                              : 'text-muted-foreground'
-                              }`}
-                          />
-                        </button>
-                      </div>
-                    )}
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {isLoading && !streamingMessageId && (
-                <div className="flex justify-start">
-                  <div className="flex gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-sm">AM</span>
-                    </div>
-                    <div className="bg-muted rounded-2xl px-5 py-4 border border-border/40">
-                      <div className="flex gap-2">
-                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-100" />
-                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-200" />
+                {isLoading && !streamingMessageId && (
+                  <div className="flex justify-start">
+                    <div className="flex gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-sm">AM</span>
+                      </div>
+                      <div className="bg-muted rounded-2xl px-5 py-4 border border-border/40">
+                        <div className="flex gap-2">
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-100" />
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-200" />
+                        </div>
                       </div>
                     </div>
                   </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              {showJumpToLatest && (
+                <div className="absolute bottom-4 right-4 z-10">
+                  <Button type="button" size="sm" onClick={handleJumpToLatest}>
+                    <ArrowDown className="w-4 h-4 mr-1" />
+                    Jump to latest
+                  </Button>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-border/40 bg-white p-4 md:p-6 shadow-lg">
+            <div className="sticky bottom-0 z-10 border-t border-border/40 bg-white p-4 md:p-6 shadow-lg">
+              {uploadedDocuments.length > 0 && (
+                <div className="max-w-4xl mx-auto mb-3 flex flex-col md:flex-row gap-2 md:items-center">
+                  <Button
+                    type="button"
+                    variant={documentOnlyMode ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDocumentOnlyMode(prev => !prev)}
+                  >
+                    {documentOnlyMode ? 'Document-only: ON' : 'Document-only: OFF'}
+                  </Button>
+                  <div className="w-full md:w-96">
+                    <Select
+                      value={selectedDocumentFilter || uploadedDocuments[0]}
+                      onValueChange={setSelectedDocumentFilter}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select uploaded document" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uploadedDocuments.map((doc) => (
+                          <SelectItem key={doc} value={doc}>
+                            {doc}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+              {uploadedDocuments.length > 0 && !documentOnlyMode && (
+                <div className="max-w-4xl mx-auto mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Document-only mode is OFF. Answers may use all indexed documents, not just the selected file.
+                </div>
+              )}
               <div className="max-w-4xl mx-auto flex gap-3">
                 {/* Hidden file input */}
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
-                  accept=".pdf,.csv,.txt,.md"
+                  accept=".pdf,.csv,.txt,.md,.docx"
                   className="hidden"
                 />
                 {/* Upload button */}
@@ -1473,7 +2347,7 @@ export default function ChatPage() {
                   className="rounded-full"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isLoading || isUploading}
-                  title="Upload PDF, CSV, or TXT file"
+                  title="Upload PDF, CSV, TXT, MD, or DOCX file"
                 >
                   <Upload className="w-4 h-4" />
                 </Button>
@@ -1491,6 +2365,18 @@ export default function ChatPage() {
                   className="flex-1 text-base px-4 py-2 rounded-full border-border/40 focus:ring-2 focus:ring-primary/20"
                   disabled={isLoading || isUploading}
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full gap-2"
+                  onClick={handleCompareQuickAction}
+                  disabled={isLoading || isUploading}
+                  title="Create compare query"
+                >
+                  <Shuffle className="w-4 h-4" />
+                  <span className="hidden md:inline">Compare</span>
+                </Button>
                 <Button
                   onClick={handleSendMessage}
                   disabled={isLoading || isUploading || !input.trim()}
@@ -1521,14 +2407,14 @@ export default function ChatPage() {
             <ResizableHandle withHandle />
             {/* Right Sidebar - Bookmarks & Analytics */}
             <ResizablePanel defaultSize={25} minSize={18} maxSize={40} className="min-w-[240px]">
-              <div className="h-full border-l border-border/40 bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm">
+              <div className="h-full border-l border-border/40 bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm min-h-0">
                 <div className="p-4 border-b border-border/40 flex items-center justify-between">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Bookmark className="w-4 h-4 text-primary" />
                     Saved Responses
                   </h2>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-scroll p-4 space-y-4 min-h-0">
                   {/* Document Analytics Chart */}
                   <Card className="p-4 bg-white border border-border/40 overflow-x-hidden shadow-sm">
                     <div className="flex items-center justify-between mb-3">

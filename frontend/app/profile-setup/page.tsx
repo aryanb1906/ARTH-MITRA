@@ -101,6 +101,26 @@ export default function ProfileSetupPage() {
                 console.error('Failed to parse saved profile:', error)
             }
         }
+
+        // If userId is missing but auth cookie exists, restore user data from session
+        const ensureUserFromSession = async () => {
+            const existingUserId = localStorage.getItem('userId')
+            if (existingUserId) return
+
+            try {
+                const res = await fetch('/api/auth/me')
+                const data = await res.json()
+                if (data?.user?.id) {
+                    localStorage.setItem('userId', data.user.id)
+                    localStorage.setItem('userEmail', data.user.email || '')
+                    localStorage.setItem('userName', data.user.name || '')
+                }
+            } catch (error) {
+                console.error('Failed to restore user from session:', error)
+            }
+        }
+
+        void ensureUserFromSession()
     }, [])
 
     const handleSaveProfile = async () => {
@@ -120,7 +140,24 @@ export default function ProfileSetupPage() {
 
         try {
             // Get userId from localStorage
-            const userId = localStorage.getItem('userId')
+            let userId = localStorage.getItem('userId')
+
+            // Fallback: restore userId from cookie-based auth session
+            if (!userId) {
+                try {
+                    const res = await fetch('/api/auth/me')
+                    const data = await res.json()
+                    if (data?.user?.id) {
+                        userId = data.user.id
+                        localStorage.setItem('userId', data.user.id)
+                        localStorage.setItem('userEmail', data.user.email || '')
+                        localStorage.setItem('userName', data.user.name || '')
+                    }
+                } catch (error) {
+                    console.error('Failed to restore user from session during save:', error)
+                }
+            }
+
             if (!userId) {
                 alert('User not found. Please login again.')
                 router.push('/login')

@@ -5,9 +5,8 @@ export async function GET() {
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`;
 
   if (!clientId) {
-    return NextResponse.json(
-      { error: 'Google OAuth not configured' },
-      { status: 500 }
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/login?error=google_oauth_not_configured`
     );
   }
 
