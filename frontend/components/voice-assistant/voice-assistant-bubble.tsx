@@ -841,6 +841,29 @@ export function VoiceAssistantBubble() {
     }
   };
 
+  // ---- Right-click handler: force-stop everything immediately ----
+  const handleRightClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Abort any in-flight API request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    // Stop speech recognition
+    stopListening();
+    // Stop TTS
+    stopSpeaking();
+    // Feedback
+    playError();
+    hapticError();
+    // Reset to idle
+    setState("idle");
+    setFollowUps([]);
+    setLiveTranscript("Stopped.");
+    setTimeout(() => setLiveTranscript(null), 1500);
+    setSystemStatus(null);
+  };
+
   // ---- Render icon based on state (use AudioVisualizer when listening, AssistantAvatar otherwise) ----
   const icon = (() => {
     switch (state) {
@@ -1030,6 +1053,7 @@ export function VoiceAssistantBubble() {
       <button
         ref={bubbleRef}
         onClick={handleClick}
+        onContextMenu={handleRightClick}
         role="button"
         aria-label={
           state === "idle"

@@ -117,11 +117,14 @@ export function useVoiceInput() {
       setIsListening(true);
       recognition.start();
 
-      // Max-wait timer: if no speech at all within 7s, stop
+      // Max-wait timer: if no speech at all within 7s, force stop and reset
       maxWaitTimerRef.current = setTimeout(() => {
+        clearTimers();
         if (recognitionRef.current) {
-          try { recognitionRef.current.stop(); } catch { /* ignore */ }
+          try { recognitionRef.current.abort(); } catch { /* ignore */ }
+          recognitionRef.current = null;
         }
+        setIsListening(false);
       }, 7000);
     },
     [clearTimers]
