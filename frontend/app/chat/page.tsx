@@ -1543,11 +1543,11 @@ export default function ChatPage() {
   const chatVisuals = useMemo(() => {
     const v: { id: string; type: "bar" | "line" | "pie"; title: string; data: Record<string, unknown>[]; unit?: string }[] = [];
     if (chartData.length > 0) {
-      v.push({ id: "chat-chart", type: chartType as "bar" | "line" | "pie", title: "Chat Chart", data: chartData as Record<string, unknown>[], unit: chartUnit });
+      v.push({ id: "chat-chart", type: chartType as "bar" | "line" | "pie", title: "Chat Chart", data: chartData as unknown as Record<string, unknown>[], unit: chartUnit });
     }
     // Also register saved chart snapshots
     chartSnapshots.forEach((snap) => {
-      v.push({ id: `chat-snap-${snap.id}`, type: snap.type as "bar" | "line" | "pie", title: snap.title, data: snap.data as Record<string, unknown>[], unit: snap.unit });
+      v.push({ id: `chat-snap-${snap.id}`, type: snap.type as "bar" | "line" | "pie", title: snap.title, data: snap.data as unknown as Record<string, unknown>[], unit: snap.unit });
     });
     return v;
   }, [chartData, chartType, chartUnit, chartSnapshots]);
