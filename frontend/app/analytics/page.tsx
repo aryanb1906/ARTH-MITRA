@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, TrendingUp, MessageSquare, Upload, Zap, Clock, Activity } from 'lucide-react'
 import { getAnalyticsSummary, getQueryDistribution } from '@/lib/api'
 import { UserMenu } from '@/components/user-menu'
+import { useRegisterAssistantData } from '@/components/voice-assistant/use-register-assistant-data'
+import { useAssistantContext } from '@/components/voice-assistant/assistant-context-provider'
 import {
     LineChart,
     Line,
@@ -66,6 +68,33 @@ export default function AnalyticsPage() {
 
         loadAnalytics()
     }, [days, router])
+
+    // ── Register data with assistant context ──
+    const assistantVisuals = useMemo(() => {
+        const v = [];
+        if (queryData.length > 0) {
+            v.push({ id: "analytics-query-dist", type: "line" as const, title: "Query Distribution Over Time", data: queryData, description: `Query count per day over last ${days} days` });
+        }
+        if (summary?.topEvents?.length) {
+            v.push({ id: "analytics-top-events", type: "bar" as const, title: "Top Events", data: summary.topEvents, description: "Most frequent event types" });
+        }
+        return v;
+    }, [queryData, summary, days]);
+
+    const assistantSummaries = useMemo(() => {
+        if (!summary) return [];
+        return [
+            { id: "analytics-total-queries", label: "Total Queries", value: summary.totalQueries ?? 0 },
+            { id: "analytics-total-uploads", label: "Documents Uploaded", value: summary.totalUploads ?? 0 },
+            { id: "analytics-avg-response", label: "Avg Response Time", value: summary.avgResponseTime ? `${summary.avgResponseTime.toFixed(2)}s` : "N/A" },
+            { id: "analytics-cache-rate", label: "Cache Hit Rate", value: summary.cacheHitRate ? `${(summary.cacheHitRate * 100).toFixed(1)}%` : "0%" },
+        ];
+    }, [summary]);
+
+    const assistantCtx = useAssistantContext();
+    useEffect(() => { assistantCtx.setCurrentPage("analytics"); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+    useRegisterAssistantData({ page: "analytics", visuals: assistantVisuals, summaries: assistantSummaries, metadata: { days } });
 
     if (isLoading) {
         return (
@@ -140,7 +169,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Content */}
-            <div className="relative container mx-auto px-4 py-8">
+            <div data-assistant-id="analytics-charts" className="relative container mx-auto px-4 py-8">
                 {/* Time Period Filter */}
                 <div className="mb-6 inline-flex gap-2 rounded-full border border-white/70 bg-white/70 p-1.5 shadow-sm backdrop-blur-sm">
                     <Button

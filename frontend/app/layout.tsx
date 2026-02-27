@@ -2,6 +2,9 @@ import React from "react"
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { AuthProvider } from '@/components/auth-provider'
+import { AssistantContextProvider } from '@/components/voice-assistant/assistant-context-provider'
+import { VoiceAssistantWrapper } from '@/components/voice-assistant-wrapper'
+import { Toaster } from '@/components/ui/toaster'
 
 import './globals.css'
 
@@ -24,7 +27,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <AssistantContextProvider>
+            {children}
+            <VoiceAssistantWrapper />
+            <Toaster />
+          </AssistantContextProvider>
+        </AuthProvider>
       </body>
     </html>
   )

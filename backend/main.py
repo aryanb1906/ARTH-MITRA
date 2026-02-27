@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Form
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Any, List, Optional
 import os
 import sys
 import shutil
@@ -106,6 +106,7 @@ class ChatResponse(BaseModel):
 class UploadResponse(BaseModel):
     status: str
     message: str
+    document_id: Optional[str] = None
 
 class StatusResponse(BaseModel):
     initialized: bool
@@ -375,9 +376,10 @@ async def upload_document(file: UploadFile = File(...), user_id: Optional[str] =
                 chunks_indexed = int(match.group(1))
         
         # Log to database if user_id provided
+        doc_record = None
         if user_id:
             try:
-                crud.create_document(
+                doc_record = crud.create_document(
                     db, user_id, file.filename, file_path, 
                     file_ext, file_size, chunks_indexed
                 )
@@ -391,7 +393,8 @@ async def upload_document(file: UploadFile = File(...), user_id: Optional[str] =
         
         return UploadResponse(
             status=result["status"],
-            message=result["message"]
+            message=result["message"],
+            document_id=doc_record.id if doc_record else None
         )
     except HTTPException:
         raise
@@ -607,6 +610,43 @@ def get_session_messages(session_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to retrieve messages: {str(e)}")
 
 
+class CreateMessageRequest(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+    sources: Optional[List[str]] = None
+    response_time: Optional[float] = None
+    cached: bool = False
+
+class CreateMessagePairRequest(BaseModel):
+    userMessage: str
+    assistantMessage: str
+    sources: Optional[List[str]] = None
+    response_time: Optional[float] = None
+
+@app.post("/api/sessions/{session_id}/messages")
+def add_session_messages(session_id: str, request: CreateMessagePairRequest, db: Session = Depends(get_db)):
+    """Persist a user+assistant message pair to an existing session (used by voice assistant)."""
+    try:
+        session = crud.get_chat_session(db, session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        user_msg = crud.create_chat_message(db, session_id, "user", request.userMessage)
+        assistant_msg = crud.create_chat_message(
+            db, session_id, "assistant", request.assistantMessage,
+            sources=request.sources,
+            response_time=request.response_time,
+        )
+        return {
+            "status": "success",
+            "userMessage": user_msg.to_dict(),
+            "assistantMessage": assistant_msg.to_dict(),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save messages: {str(e)}")
+
+
 @app.delete("/api/sessions/{session_id}")
 def delete_session(session_id: str, db: Session = Depends(get_db)):
     """Delete a chat session"""
@@ -645,6 +685,39 @@ def get_user_documents(user_id: str, db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve documents: {str(e)}")
+
+
+@app.delete("/api/documents/{document_id}")
+def delete_document(document_id: str, db: Session = Depends(get_db)):
+    """Delete a user-uploaded document (DB record, file on disk, and vector store chunks)"""
+    try:
+        doc = crud.get_document(db, document_id)
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        filename = doc.filename
+        file_path = doc.file_path
+
+        # 1. Remove chunks from the vector store
+        try:
+            bot = get_bot()
+            if bot._initialized:
+                bot.remove_document(filename)
+        except Exception as e:
+            print(f"\u26a0\ufe0f Failed to remove chunks from vector store: {e}")
+
+        # 2. Delete the physical file (only from uploads/)
+        if file_path and os.path.exists(file_path) and UPLOAD_DIR in os.path.abspath(file_path):
+            os.remove(file_path)
+
+        # 3. Delete the DB record
+        crud.delete_document(db, document_id)
+
+        return {"status": "success", "message": f"Document '{filename}' deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 
 @app.post("/api/users/{user_id}/saved-messages")
@@ -719,3 +792,516 @@ def get_user_analytics(user_id: str, days: int = 30, db: Session = Depends(get_d
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get user analytics: {str(e)}")
+
+
+# ──────────────────────────────────────────────────────────────
+# Voice Assistant Endpoint  (ARTH-MITRA Copilot – Phase 2)
+# ──────────────────────────────────────────────────────────────
+
+ASSISTANT_FEATURE_FLAG = os.getenv("ENABLE_VOICE_ASSISTANT", "true").lower() == "true"
+
+class AssistantVisual(BaseModel):
+    id: str
+    type: str  # bar | line | pie | area | stat | table
+    title: str
+    data: Optional[Any] = None
+    unit: Optional[str] = None
+    description: Optional[str] = None
+
+class AssistantSummary(BaseModel):
+    id: str
+    label: str
+    value: Any = None
+    subtitle: Optional[str] = None
+
+class AssistantChatHistoryEntry(BaseModel):
+    id: str
+    title: Optional[str] = None
+
+class AssistantSavedResponse(BaseModel):
+    id: str
+    title: Optional[str] = None
+    summary: Optional[str] = None
+
+class AssistantPageContext(BaseModel):
+    currentPage: Optional[str] = None
+    activeChatId: Optional[str] = None
+    chatHistory: Optional[List[AssistantChatHistoryEntry]] = None
+    savedResponses: Optional[List[AssistantSavedResponse]] = None
+    visuals: Optional[List[AssistantVisual]] = None
+    summaries: Optional[List[AssistantSummary]] = None
+    metadata: Optional[dict] = None
+
+class AssistantContext(BaseModel):
+    currentRoute: Optional[str] = None
+    activeModule: Optional[str] = None
+    selectedFinancialYear: Optional[str] = None
+    visibleComponentIds: Optional[List[str]] = None
+    assistantContext: Optional[AssistantPageContext] = None
+
+class AssistantRequest(BaseModel):
+    userText: str
+    context: Optional[AssistantContext] = None
+    userId: Optional[str] = None
+    language: Optional[str] = "en"  # "en" or "hi"
+
+class AssistantAction(BaseModel):
+    type: str  # navigate | open_report | highlight_section | run_calculator | guide_and_highlight | explain_graph
+    target: Optional[str] = None
+    params: Optional[dict] = None
+
+class AssistantResponse(BaseModel):
+    reply: str
+    action: Optional[AssistantAction] = None
+    language: Optional[str] = "en"
+    audioBase64: Optional[str] = None
+    isFinanceRelated: Optional[bool] = False
+    followUps: Optional[list[str]] = None  # 2-3 suggested follow-up questions
+
+ASSISTANT_SYSTEM_PROMPT = """You are Arth-Mitra Voice Copilot, a helpful Indian financial assistant embedded inside the Arth-Mitra web application.
+
+IMPORTANT – SAFETY POLICY:
+You are NOT allowed to perform or suggest any destructive or data-modifying operations.
+This includes but is not limited to: deleting chats, deleting documents, clearing saved responses, resetting data, submitting filings, or modifying financial records.
+If the user requests any deletion, reset, or data-modification action, respond politely that such operations must be performed manually through the application UI. Do NOT return an action object for these requests.
+
+ROLE:
+- Guide the user around the application UI.
+- Answer financial questions about Indian taxation, deductions, government schemes, and tax-saving investments.
+- You may give slight investment suggestions ONLY within tax optimisation context.
+
+STRICTLY NOT ALLOWED:
+- Any destructive or data-modifying actions (delete, clear, reset, submit filings, modify data).
+- Cryptocurrency or stock-picking advice.
+- Non-Indian tax guidance.
+- Legal representation claims.
+
+CONTEXT:
+The user is currently on route: {route}
+Active module: {module}
+Financial year: {fy}
+Visible UI components: {components}
+Language preference: {language}
+
+PAGE DATA (structured context from the current page – use this to answer questions about displayed data):
+{page_data}
+
+DATA-GROUNDING RULES (MANDATORY):
+- When the user says "explain this", "explain the graph", "what does this show", "why is this high/low", or any query about on-screen content, answer STRICTLY from the PAGE DATA above.
+- Reference specific labels, values, and trends present in the data. Cite numbers exactly as provided.
+- If the PAGE DATA section is empty or does not contain enough information to answer, say so honestly. NEVER invent, estimate, or hallucinate values that are not in the data.
+- When comparing data points, use only the values listed. Do not interpolate or assume missing entries.
+- Keep the tone professional and concise.
+
+RESPONSE FORMAT – you MUST reply with valid JSON only, no markdown fences:
+
+For INFORMATIONAL responses (tax explanations, scheme comparisons, financial advice, data analysis):
+{{
+  "reply": "<your spoken response text>",
+  "language": "{language}",
+  "isFinanceRelated": true,
+  "followUps": ["<follow-up question 1>", "<follow-up question 2>", "<follow-up question 3>"]
+}}
+
+For GENERAL / NON-FINANCE responses (greetings, jokes, weather, general knowledge, app help):
+{{
+  "reply": "<your spoken response text>",
+  "language": "{language}",
+  "isFinanceRelated": false,
+  "followUps": ["<follow-up question 1>", "<follow-up question 2>"]
+}}
+
+FOLLOW-UP SUGGESTIONS RULES:
+- ALWAYS include 2-3 relevant follow-up questions in the "followUps" array.
+- Follow-ups should be natural next questions the user might want to ask.
+- Keep each follow-up SHORT (under 10 words) — they will be shown as tappable pills.
+- For finance topics, suggest deeper dives, comparisons, or action items.
+- For Hindi responses, write follow-ups in Hindi too.
+- Examples: "Compare old vs new regime", "What deductions can I claim?", "Show me PPF rates"
+
+IMPORTANT: The "isFinanceRelated" field is REQUIRED in EVERY response. Set it to true when the query is about finance, taxes, investments, savings, government schemes, loans, insurance, budgets, income, deductions, or any monetary/economic topic. Set it to false for all other queries (general greetings, app navigation help, weather, jokes, etc.).
+
+Do NOT include the "action" field for informational responses.
+
+For SYSTEM ACTIONS (navigation, UI interactions):
+{{
+  "reply": "<your spoken response text>",
+  "action": {{
+    "type": "<one of: navigate | open_report | highlight_section | run_calculator | guide_and_highlight | explain_graph>",
+    "target": "<route path, component data-assistant-id, or null>",
+    "params": {{}}
+  }},
+  "language": "{language}",
+  "isFinanceRelated": false
+}}
+Only include "action" when the user explicitly requests a navigation or UI operation.
+NEVER return action.type "none" — simply omit the action field instead.
+
+ACTION RULES:
+- "navigate": set target to the route path, e.g. "/tax-calculator"
+- "highlight_section": set target to a data-assistant-id value
+- "guide_and_highlight": same as highlight but the bubble will animate to the element
+- "run_calculator": triggers the tax calculator; target="/tax-calculator"
+- "open_report": target = report identifier
+- "explain_graph": highlight a chart/visual and explain its data; target = data-assistant-id of the chart
+
+If the user is asking a question, requesting an explanation, or having a conversation, respond with ONLY "reply" and "language" — no "action".
+
+DESTRUCTIVE ACTION POLICY:
+You must NEVER return an action with any of these types: delete_chat, delete_document, clear_saved_responses, reset_data, submit_filing, modify_financial_data.
+If the user requests deletion, clearing, resetting, filing submission, or data modification, respond with a polite message explaining that these operations must be performed manually through the application UI. Do not include an action object.
+
+Available routes: / (home), /chat, /tax-calculator, /settings, /analytics, /profile-setup
+Available data-assistant-ids: sidebar, chat-input, file-upload, tax-form, profile-section, settings-section, analytics-charts, scheme-results, comparison-section
+
+Keep replies concise (under 120 words) and conversational. If the user speaks Hindi, reply in Hindi.
+"""
+
+# ── Voice assistant rate limiter ─────────────────────────────────
+from collections import defaultdict as _defaultdict
+
+_voice_rate_buckets: dict[str, list[float]] = _defaultdict(list)
+_VOICE_MAX_REQUESTS = 10   # per window
+_VOICE_WINDOW_SECS  = 60   # 1 minute
+
+def _voice_rate_check(user_id: str) -> None:
+    """Raise 429 if user exceeds voice assistant rate limit."""
+    now = time.time()
+    bucket = _voice_rate_buckets[user_id]
+    # Prune expired entries
+    _voice_rate_buckets[user_id] = [t for t in bucket if now - t < _VOICE_WINDOW_SECS]
+    if len(_voice_rate_buckets[user_id]) >= _VOICE_MAX_REQUESTS:
+        raise HTTPException(status_code=429, detail="Too many voice requests. Please wait a moment.")
+    _voice_rate_buckets[user_id].append(now)
+
+
+# ── Prompt injection sanitization ────────────────────────────────
+import re as _re
+
+_INJECTION_PATTERNS = [
+    _re.compile(r"(?:ignore|disregard|forget|override)\s+(?:all\s+)?(?:previous|above|prior|earlier|system)\s+(?:instructions?|prompts?|rules?|directives?)", _re.IGNORECASE),
+    _re.compile(r"(?:you\s+are\s+now|act\s+as|pretend\s+(?:to\s+be|you(?:'re|\s+are)))\s+", _re.IGNORECASE),
+    _re.compile(r"(?:system\s*:|assistant\s*:|<\|?(?:im_start|system|endoftext)\|?>)", _re.IGNORECASE),
+    _re.compile(r"(?:reveal|show|print|output|repeat)\s+(?:your\s+)?(?:system\s+)?(?:prompt|instructions?|rules?)", _re.IGNORECASE),
+    _re.compile(r"\[INST\]|\[/INST\]|<<SYS>>|<</SYS>>", _re.IGNORECASE),
+]
+
+def _sanitize_user_input(text: str) -> str:
+    """
+    Sanitize user input to mitigate prompt injection attempts.
+    Strips dangerous patterns and excessive special characters while
+    preserving legitimate financial queries (including Hindi/Devanagari).
+    """
+    if not text or not text.strip():
+        return text
+
+    sanitized = text.strip()
+
+    # Remove triple-backtick fenced blocks that could embed injections
+    sanitized = _re.sub(r"```[\s\S]*?```", "", sanitized)
+
+    # Strip known injection patterns
+    for pattern in _INJECTION_PATTERNS:
+        sanitized = pattern.sub("", sanitized)
+
+    # Remove excessive consecutive special characters (>3 of the same)
+    sanitized = _re.sub(r"([^\w\s\u0900-\u097F₹])\1{3,}", r"\1\1", sanitized)
+
+    # Cap input length (prevent token-stuffing attacks)
+    sanitized = sanitized[:1000].strip()
+
+    return sanitized if sanitized else "Hello"
+
+
+@app.post("/api/assistant", response_model=AssistantResponse)
+def voice_assistant(request: AssistantRequest, db: Session = Depends(get_db)):
+    """Voice assistant endpoint – thin orchestration layer over existing LLM"""
+    if not ASSISTANT_FEATURE_FLAG:
+        raise HTTPException(status_code=403, detail="Voice assistant is disabled")
+
+    # ── Auth check ──────────────────────────────────────────────
+    if not request.userId:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    user = crud.get_user_by_id(db, request.userId)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid user")
+
+    # ── Rate limiting (10 requests/minute per user) ─────────────
+    _voice_rate_check(request.userId)
+
+    # ── Sanitize user input (prompt injection mitigation) ───────
+    request.userText = _sanitize_user_input(request.userText)
+
+    start_time = time.time()
+
+    try:
+        bot = get_bot()
+        if not bot._initialized:
+            bot.initialize(auto_index=True)
+
+        ctx = request.context or AssistantContext()
+
+        # Build page-data block from rich context if available
+        page_data_lines: list[str] = []
+        ac = ctx.assistantContext
+        if ac:
+            # ── Page identity ─────────────────────────────────────
+            if ac.currentPage:
+                page_data_lines.append(f"Current page: {ac.currentPage}")
+
+            # ── Active chat ───────────────────────────────────────
+            if ac.activeChatId:
+                page_data_lines.append(f"Active chat ID: {ac.activeChatId}")
+
+            # ── Chat history ──────────────────────────────────────
+            if ac.chatHistory:
+                page_data_lines.append("")
+                page_data_lines.append(f"Available chats ({len(ac.chatHistory)}):")
+                for ch in ac.chatHistory[:30]:  # cap to avoid prompt bloat
+                    page_data_lines.append(f"  - [{ch.id}] {ch.title or 'Untitled'}")
+                if len(ac.chatHistory) > 30:
+                    page_data_lines.append(f"  … and {len(ac.chatHistory) - 30} more")
+
+            # ── Saved responses ───────────────────────────────────
+            if ac.savedResponses:
+                page_data_lines.append("")
+                page_data_lines.append(f"Saved responses ({len(ac.savedResponses)}):")
+                for sr in ac.savedResponses[:20]:
+                    line = f"  - [{sr.id}] {sr.title or 'Untitled'}"
+                    if sr.summary:
+                        line += f": {sr.summary[:120]}"
+                    page_data_lines.append(line)
+                if len(ac.savedResponses) > 20:
+                    page_data_lines.append(f"  … and {len(ac.savedResponses) - 20} more")
+
+            # ── Summary KPIs ──────────────────────────────────────
+            if ac.summaries:
+                page_data_lines.append("")
+                page_data_lines.append("Summaries (key figures currently displayed):")
+                for s in ac.summaries:
+                    line = f"  - {s.label}: {s.value}"
+                    if s.subtitle:
+                        line += f" ({s.subtitle})"
+                    page_data_lines.append(line)
+
+            # ── Visuals / charts ──────────────────────────────────
+            if ac.visuals:
+                page_data_lines.append("")
+                page_data_lines.append("Visuals/Charts currently displayed:")
+                for v in ac.visuals:
+                    header = f"  [{v.type.upper()} CHART] {v.title}"
+                    if v.unit:
+                        header += f" (unit: {v.unit})"
+                    if v.description:
+                        header += f" — {v.description}"
+                    page_data_lines.append(header)
+                    # Serialize actual data points so the LLM can reason over them
+                    if v.data:
+                        try:
+                            data_str = json.dumps(v.data, default=str, ensure_ascii=False)
+                            # Truncate very large payloads to keep prompt manageable
+                            if len(data_str) > 2000:
+                                data_str = data_str[:2000] + "… (truncated)"
+                            page_data_lines.append(f"    Data: {data_str}")
+                        except Exception:
+                            page_data_lines.append("    Data: (serialisation error)")
+
+            # ── Page metadata ─────────────────────────────────────
+            if ac.metadata:
+                page_data_lines.append("")
+                page_data_lines.append(f"Page metadata: {json.dumps(ac.metadata, default=str, ensure_ascii=False)}")
+
+        system_prompt = ASSISTANT_SYSTEM_PROMPT.format(
+            route=ctx.currentRoute or "/chat",
+            module=ctx.activeModule or "none",
+            fy=ctx.selectedFinancialYear or "2024-25",
+            components=", ".join(ctx.visibleComponentIds or []),
+            language=request.language or "en",
+            page_data="\n".join(page_data_lines) if page_data_lines else "No additional page data is currently registered. Answer based on your financial knowledge.",
+        )
+
+        # ── Hindi language extension ──────────────────────────────
+        if (request.language or "en") == "hi":
+            system_prompt += (
+                "\n\nLANGUAGE DIRECTIVE – HINDI:"
+                "\nYou must respond in Hindi (Devanagari script)."
+                "\nUse professional financial Hindi suitable for the Indian context."
+                "\nKeep explanations clear and formal."
+                "\nAvoid mixing excessive English unless necessary for technical terms."
+                "\n"
+                "\nUse standard Hindi financial terminology. Preferred terms include:"
+                "\n  - Tax → कर"
+                "\n  - Income Tax → आयकर"
+                "\n  - Savings → बचत"
+                "\n  - Investment → निवेश"
+                "\n  - Expenditure → व्यय"
+                "\n  - Financial Analysis → वित्तीय विश्लेषण"
+                "\n  - Deduction → कटौती"
+                "\n  - Rebate → छूट"
+                "\n  - Taxable Income → कर योग्य आय"
+                "\n  - Tax Return → कर विवरणी"
+                "\n  - Assessment Year → निर्धारण वर्ष"
+                "\n  - Financial Year → वित्तीय वर्ष"
+                "\n  - Gross Income → सकल आय"
+                "\n  - Net Income → शुद्ध आय"
+                "\n  - Tax Slab → कर स्लैब"
+                "\n  - Government Scheme → सरकारी योजना"
+                "\nAlways prefer these Devanagari terms over their English equivalents in your reply."
+            )
+        elif (request.language or "en") == "en-IN":
+            system_prompt += (
+                "\n\nLANGUAGE DIRECTIVE – HINGLISH (en-IN):"
+                "\nThe user speaks Hinglish — a natural mix of Hindi and English commonly used in India."
+                "\nRespond in a friendly Hinglish style: primarily English but freely mix Hindi words and phrases as an Indian person naturally would."
+                "\nExamples of Hinglish style:"
+                "\n  - 'Aapka income 15 lakh hai toh new regime mein tax lagbhag 1.87 lakh hoga.'"
+                "\n  - 'PPF mein invest karna chahte ho? 80C ke under 1.5 lakh tak deduction milta hai.'"
+                "\n  - 'Yeh scheme bahut acchi hai retirement ke liye.'"
+                "\nKeep the tone conversational and natural. Use Romanized Hindi (Latin script), NOT Devanagari."
+                "\nDo NOT force pure Hindi or pure English — blend naturally."
+                "\nAll financial terms can stay in English (tax, deduction, SIP, PPF, etc.)."
+                "\nFollow-up suggestions should also be in Hinglish style."
+            )
+
+        # Build a single-turn prompt for the LLM (no RAG retrieval needed for UI guidance)
+        combined_prompt = f"{system_prompt}\n\nUser says: {request.userText}"
+
+        # Use the bot's LLM directly for a lightweight call
+        from langchain_core.messages import HumanMessage, SystemMessage
+        llm = bot.llm
+        messages = [SystemMessage(content=system_prompt), HumanMessage(content=request.userText)]
+        raw = llm.invoke(messages)
+        raw_text = raw.content if hasattr(raw, "content") else str(raw)
+
+        # Strip markdown fences if present
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[-1]
+        if cleaned.endswith("```"):
+            cleaned = cleaned.rsplit("```", 1)[0]
+        cleaned = cleaned.strip()
+
+        # Parse JSON
+        try:
+            parsed = json.loads(cleaned)
+        except json.JSONDecodeError:
+            # Fallback: treat entire text as a plain reply
+            parsed = {"reply": raw_text, "language": request.language or "en"}
+
+        # Validate action type — only allow non-destructive actions
+        valid_actions = {
+            "navigate", "open_report", "highlight_section", "run_calculator",
+            "guide_and_highlight", "explain_graph",
+        }
+        _BLOCKED_ACTIONS = {
+            "delete_chat", "delete_document", "clear_saved_responses",
+            "reset_data", "submit_filing", "modify_financial_data",
+        }
+        action_data = parsed.get("action", None)
+        # Strip invalid, blocked destructive, or "none" actions
+        if isinstance(action_data, dict):
+            _action_type = action_data.get("type")
+            if _action_type in _BLOCKED_ACTIONS:
+                # LLM returned a destructive action despite instructions — strip it
+                action_data = None
+            elif _action_type not in valid_actions:
+                action_data = None
+        else:
+            action_data = None
+
+        response_time = time.time() - start_time
+
+        reply_text = parsed.get("reply", "I'm sorry, I couldn't process that.")
+        is_finance_related = bool(parsed.get("isFinanceRelated", False))
+        follow_ups = parsed.get("followUps", None)
+
+        # Log interaction with enhanced analytics
+        if request.userId:
+            try:
+                action_type = action_data.get("type", "none") if isinstance(action_data, dict) else "none"
+                follow_up_count = len(follow_ups) if isinstance(follow_ups, list) else 0
+                crud.log_analytics(db, request.userId, "voice_assistant", {
+                    "userText": request.userText[:200],
+                    "route": ctx.currentRoute,
+                    "action": action_type,
+                    "responseTime": round(response_time, 3),
+                    "language": request.language or "en",
+                    "isFinanceRelated": is_finance_related,
+                    "replyLength": len(reply_text),
+                    "followUpCount": follow_up_count,
+                    "hadAction": action_type != "none",
+                    "inputLength": len(request.userText),
+                })
+            except Exception:
+                pass  # non-critical
+        # Validate follow_ups is a list of strings
+        if isinstance(follow_ups, list):
+            follow_ups = [str(f) for f in follow_ups if isinstance(f, str) and f.strip()][:3]
+        else:
+            follow_ups = None
+
+        # Build optional action object — only when a real system action is present
+        response_action = None
+        if action_data is not None:
+            action_type = action_data.get("type", "none")
+            response_action = AssistantAction(
+                type=action_type,
+                target=action_data.get("target"),
+                params=action_data.get("params"),
+            )
+
+        return AssistantResponse(
+            reply=reply_text,
+            action=response_action,
+            language=parsed.get("language", request.language or "en"),
+            audioBase64=None,
+            isFinanceRelated=is_finance_related,
+            followUps=follow_ups,
+        )
+
+    except Exception as e:
+        print(f"❌ Assistant error: {e}")
+        return AssistantResponse(
+            reply="I'm having trouble right now. Please try again in a moment.",
+            action=None,
+            language=request.language or "en",
+            audioBase64=None,
+        )
+
+
+# ── OpenAI Text-to-Speech endpoint ──────────────────────────────
+class TTSRequest(BaseModel):
+    text: str
+
+@app.post("/api/tts")
+def text_to_speech(request: TTSRequest):
+    """Convert text to speech using OpenAI TTS. Returns streaming audio/mpeg."""
+    from openai import OpenAI
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not configured")
+
+    if not request.text or not request.text.strip():
+        raise HTTPException(status_code=400, detail="Text must not be empty")
+
+    try:
+        client = OpenAI(api_key=api_key)
+        response = client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice="alloy",
+            input=request.text,
+            response_format="mp3",
+        )
+
+        audio_bytes = response.content
+
+        return StreamingResponse(
+            iter([audio_bytes]),
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=speech.mp3"},
+        )
+
+    except Exception as e:
+        print(f"❌ TTS error: {e}")
+        raise HTTPException(status_code=500, detail=f"TTS generation failed: {str(e)}")

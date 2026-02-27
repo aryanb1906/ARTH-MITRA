@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/components/auth-provider'
 import { updateProfile as updateUserProfile, getProfile } from '@/lib/api'
 import { Logo } from '@/components/logo'
+import { useAssistantContext } from '@/components/voice-assistant/assistant-context-provider'
 
 interface UserProfile {
     age: number | ''
@@ -60,6 +61,8 @@ export default function ProfileSetupPage() {
     const [isSaving, setIsSaving] = useState(false)
     const [completedFields, setCompletedFields] = useState<string[]>([])
     const initializationDone = useRef(false)
+    const assistantCtx = useAssistantContext();
+    useEffect(() => { assistantCtx.setCurrentPage("profile-setup"); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
     useEffect(() => {
         if (initializationDone.current) return
@@ -245,7 +248,7 @@ export default function ProfileSetupPage() {
                 </div>
 
                 {/* Main Form Card */}
-                <Card className="p-8 bg-white shadow-lg border-border/40 mb-6">
+                <Card data-assistant-id="profile-section" className="p-8 bg-white shadow-lg border-border/40 mb-6">
                     <div className="space-y-8">
                         {/* Required Fields Section */}
                         <div>

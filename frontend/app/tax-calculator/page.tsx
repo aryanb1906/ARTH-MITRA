@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Calculator, TrendingDown, Info } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useRegisterAssistantData } from '@/components/voice-assistant/use-register-assistant-data'
+import { useAssistantContext } from '@/components/voice-assistant/assistant-context-provider'
 import {
     BarChart,
     Bar,
@@ -224,6 +226,34 @@ export default function TaxCalculatorPage() {
         }).format(value)
     }
 
+    // ── Register data with assistant context ──
+    const taxVisuals = useMemo(() => {
+        if (!taxResult) return [];
+        return [
+            { id: "tax-comparison", type: "bar" as const, title: "Tax Comparison", unit: "₹", data: [{ name: "Tax Liability", "Old Regime": taxResult.oldRegime.totalTax, "New Regime": taxResult.newRegime.totalTax }] },
+            { id: "tax-effective-rate", type: "composed" as const, title: "Effective Tax Rate", unit: "%", data: [{ name: "Effective Rate", "Old Regime": taxResult.oldRegime.effectiveRate, "New Regime": taxResult.newRegime.effectiveRate }] },
+            { id: "tax-old-breakdown", type: "pie" as const, title: "Old Regime Breakdown", unit: "₹", data: [{ name: "Income Tax", value: taxResult.oldRegime.tax }, { name: "Cess", value: taxResult.oldRegime.cess }] },
+            { id: "tax-new-breakdown", type: "pie" as const, title: "New Regime Breakdown", unit: "₹", data: [{ name: "Income Tax", value: taxResult.newRegime.tax }, { name: "Cess", value: taxResult.newRegime.cess }] },
+        ];
+    }, [taxResult]);
+
+    const taxSummaries = useMemo(() => {
+        if (!taxResult) return [];
+        return [
+            { id: "tax-old-total", label: "Old Regime Total Tax", value: taxResult.oldRegime.totalTax },
+            { id: "tax-new-total", label: "New Regime Total Tax", value: taxResult.newRegime.totalTax },
+            { id: "tax-savings", label: "Savings", value: taxResult.savings.amount },
+            { id: "tax-savings-pct", label: "Savings %", value: `${taxResult.savings.percentage.toFixed(1)}%` },
+            { id: "tax-old-effective", label: "Old Effective Rate", value: `${taxResult.oldRegime.effectiveRate.toFixed(1)}%` },
+            { id: "tax-new-effective", label: "New Effective Rate", value: `${taxResult.newRegime.effectiveRate.toFixed(1)}%` },
+        ];
+    }, [taxResult]);
+
+    const assistantCtx = useAssistantContext();
+    useEffect(() => { assistantCtx.setCurrentPage("tax-calculator"); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+    useRegisterAssistantData({ page: "tax-calculator", visuals: taxVisuals, summaries: taxSummaries, metadata: { ageGroup, grossIncome } });
+
     return (
         <div className="min-h-screen bg-white">
             {/* Navigation */}
@@ -256,7 +286,7 @@ export default function TaxCalculatorPage() {
 
                 <div className="space-y-8">
                     {/* Input Section - Full Width at Top */}
-                    <Card className="p-6">
+                    <Card data-assistant-id="tax-form" className="p-6">
                         <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                             <Calculator className="w-5 h-5" />
                             Enter Details
@@ -403,7 +433,7 @@ export default function TaxCalculatorPage() {
 
                     {/* Results Section */}
                     {taxResult ? (
-                        <div className="space-y-8">
+                        <div data-assistant-id="comparison-section" className="space-y-8">
                             {/* Comparison Header */}
                             <div className="bg-gradient-to-r from-primary/10 to-blue-500/10 rounded-lg p-6 border border-primary/20">
                                 <div className="flex items-center justify-between">

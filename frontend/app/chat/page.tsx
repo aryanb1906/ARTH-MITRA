@@ -1,17 +1,19 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, ArrowDown, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X, Pencil, Check, Copy, Shuffle } from 'lucide-react'
-import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile, updateChatSessionTitle, getUserDocuments } from '@/lib/api'
+import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile, updateChatSessionTitle, getUserDocuments, deleteUserDocument, addSessionMessages } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
 import { UserMenu } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
 import { Logo } from '@/components/logo'
+import { useRegisterAssistantData } from '@/components/voice-assistant/use-register-assistant-data'
+import { useAssistantContext } from '@/components/voice-assistant/assistant-context-provider'
 import {
   Dialog,
   DialogContent,
@@ -21,6 +23,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -155,7 +165,7 @@ export default function ChatPage() {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [lastUploadedFile, setLastUploadedFile] = useState<string>('')
-  const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([])
+  const [uploadedDocuments, setUploadedDocuments] = useState<{id: string; filename: string}[]>([])
   const [documentOnlyMode, setDocumentOnlyMode] = useState(false)
   const [selectedDocumentFilter, setSelectedDocumentFilter] = useState<string>('')
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -217,6 +227,9 @@ export default function ChatPage() {
   // Session title editing
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingSessionTitle, setEditingSessionTitle] = useState('')
+
+  // Deletion confirmation dialog
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'session' | 'document'; id: string; label: string } | null>(null)
 
   // Single initialization on mount - handles ALL navigation logic
   useEffect(() => {
@@ -308,7 +321,12 @@ export default function ChatPage() {
       // Create or load chat session
       try {
         // Check if there's an active session in localStorage (user-specific)
-        const storedSessionId = localStorage.getItem(`currentSessionId_${storedUserId}`)
+        let storedSessionId = localStorage.getItem(`currentSessionId_${storedUserId}`)
+        // Clean up corrupted session IDs from previous bugs
+        if (storedSessionId === 'undefined' || storedSessionId === 'null') {
+          localStorage.removeItem(`currentSessionId_${storedUserId}`)
+          storedSessionId = null
+        }
         if (storedSessionId) {
           setSessionId(storedSessionId)
           // Load messages for this session from API
@@ -368,6 +386,68 @@ export default function ChatPage() {
     }))
     localStorage.setItem(`chatHistory_${userId}`, JSON.stringify(serializable))
   }, [messages, userId])
+
+  // ── Voice assistant: inject finance queries into a new chat ──
+  const handleVoiceFinanceQuery = useCallback(async (e: Event) => {
+    const { userText, reply } = (e as CustomEvent).detail as { userText: string; reply: string }
+    if (!userId) return
+
+    try {
+      // Create a new session for this finance query
+      const title = userText.trim().split(/\s+/).slice(0, 7).join(' ')
+      const newSession = await createChatSession(userId, title)
+      if (!newSession?.id) return
+
+      setSessionId(newSession.id)
+      localStorage.setItem(`currentSessionId_${userId}`, newSession.id)
+
+      // Inject both messages into the chat UI
+      const userMsg: Message = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: userText,
+        timestamp: new Date(),
+      }
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        content: reply,
+        timestamp: new Date(),
+      }
+      setMessages([buildWelcomeMessage(), userMsg, aiMsg])
+      setShowSuggestions(false)
+
+      // Persist to backend
+      await addSessionMessages(newSession.id, userText, reply)
+
+      // Refresh sidebar
+      loadChatSessions(userId)
+    } catch (err) {
+      console.error('Failed to inject voice finance query into chat:', err)
+    }
+  }, [userId, sessionId])
+
+  // Listen for voice-finance-query events + check sessionStorage on mount
+  useEffect(() => {
+    window.addEventListener('voice-finance-query', handleVoiceFinanceQuery)
+
+    // Check if navigated here from the voice assistant on another page
+    const pending = sessionStorage.getItem('pendingVoiceFinanceQuery')
+    if (pending) {
+      sessionStorage.removeItem('pendingVoiceFinanceQuery')
+      try {
+        const detail = JSON.parse(pending)
+        // Small delay to let initialization complete
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('voice-finance-query', { detail }))
+        }, 800)
+      } catch { /* ignore parse errors */ }
+    }
+
+    return () => {
+      window.removeEventListener('voice-finance-query', handleVoiceFinanceQuery)
+    }
+  }, [handleVoiceFinanceQuery])
 
   const parseNumericValue = (raw: string): number | null => {
     const cleaned = raw
@@ -772,7 +852,7 @@ export default function ChatPage() {
   const handleSourceChipClick = (source: string) => {
     setSelectedDocumentFilter(source)
     setDocumentOnlyMode(true)
-    setUploadedDocuments(prev => (prev.includes(source) ? prev : [source, ...prev]))
+    setUploadedDocuments(prev => (prev.some(d => d.filename === source) ? prev : [{ id: '', filename: source }, ...prev]))
   }
 
   const handleCopySources = async (message: Message) => {
@@ -1228,19 +1308,34 @@ export default function ChatPage() {
     }
   }
 
-  const handleDeleteSession = async (sessionId: string) => {
-    try {
-      if (!confirm('Are you sure you want to delete this chat?')) return
+  const requestDeleteSession = (targetSessionId: string) => {
+    const session = chatSessions.find(s => s.id === targetSessionId)
+    setDeleteConfirm({ type: 'session', id: targetSessionId, label: session?.title || 'this chat' })
+  }
 
+  const handleDeleteSession = async (targetSessionId: string) => {
+    try {
       // Delete from backend
-      await deleteChatSession(sessionId)
+      await deleteChatSession(targetSessionId)
 
       // Remove from local state
-      setChatSessions(prev => prev.filter(s => s.id !== sessionId))
+      setChatSessions(prev => prev.filter(s => s.id !== targetSessionId))
 
-      // If it's the current session, create a new one
-      if (sessionId === sessionId) {
-        handleNewChat()
+      // If it's the current session, start a new chat
+      if (targetSessionId === sessionId) {
+        setSessionId(null)
+        setMessages([buildWelcomeMessage()])
+        setShowSuggestions(true)
+        setVisibleSuggestions([...suggestedQueries])
+        setLastUploadedFile('')
+        setStreamingMessageId(null)
+        setIsLoading(false)
+        setPinnedMessageIds([])
+        setExpandedSnippets({})
+        setComparisonSortByMessage({})
+        if (userId) {
+          localStorage.removeItem(`currentSessionId_${userId}`)
+        }
       }
     } catch (error) {
       console.error('Failed to delete session:', error)
@@ -1321,13 +1416,19 @@ export default function ChatPage() {
     try {
       const response = await uploadDocument(file, userId || undefined)
 
+      const docId = response.document_id || ''
       setUploadedDocuments(prev => {
-        if (prev.includes(file.name)) return prev
-        return [file.name, ...prev]
+        if (prev.some(d => d.filename === file.name)) return prev
+        return [{ id: docId, filename: file.name }, ...prev]
       })
 
       setSelectedDocumentFilter(file.name)
       setDocumentOnlyMode(true)
+
+      // Reload from DB to ensure we have real IDs for all docs
+      if (userId) {
+        loadUploadedDocuments(userId)
+      }
 
       // Update the message with success
       setMessages(prev => prev.map(msg =>
@@ -1361,19 +1462,45 @@ export default function ChatPage() {
 
   const loadUploadedDocuments = async (uid: string) => {
     try {
-      const data = await getUserDocuments(uid)
-      const docs = (data?.documents || [])
+      const docs = (await getUserDocuments(uid))
         .filter((doc: any) => !!doc?.filename)
-        .map((doc: any) => doc.filename)
+        .map((doc: any) => ({ id: doc.id as string, filename: doc.filename as string }))
 
-      const uniqueDocs = Array.from(new Set(docs)) as string[]
+      // Deduplicate by filename
+      const seen = new Set<string>()
+      const uniqueDocs: {id: string; filename: string}[] = []
+      for (const d of docs) {
+        if (!seen.has(d.filename)) {
+          seen.add(d.filename)
+          uniqueDocs.push(d)
+        }
+      }
       setUploadedDocuments(uniqueDocs)
 
       if (uniqueDocs.length > 0 && !selectedDocumentFilter) {
-        setSelectedDocumentFilter(uniqueDocs[0])
+        setSelectedDocumentFilter(uniqueDocs[0].filename)
       }
     } catch (error) {
       console.error('Failed to load uploaded documents:', error)
+    }
+  }
+
+  const requestDeleteDocument = (documentId: string, filename: string) => {
+    setDeleteConfirm({ type: 'document', id: documentId, label: filename })
+  }
+
+  const handleDeleteDocument = async (documentId: string, filename: string) => {
+    try {
+      await deleteUserDocument(documentId)
+      setUploadedDocuments(prev => prev.filter(d => d.id !== documentId))
+      // If the deleted doc was the selected filter, reset
+      if (selectedDocumentFilter === filename) {
+        setSelectedDocumentFilter('')
+        setDocumentOnlyMode(false)
+      }
+    } catch (error) {
+      console.error('Failed to delete document:', error)
+      alert('Failed to delete document. Please try again.')
     }
   }
 
@@ -1385,6 +1512,55 @@ export default function ChatPage() {
   const pinnedMessages = pinnedMessageIds
     .map(id => messages.find(message => message.id === id && message.type === 'ai'))
     .filter((message): message is Message => Boolean(message))
+
+  // ── Register data with assistant context ──
+  const assistantContext = useAssistantContext();
+
+  // Set current page on mount
+  useEffect(() => {
+    assistantContext.setCurrentPage("chat");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync active chat id
+  useEffect(() => {
+    assistantContext.setActiveChatId(sessionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  // Sync chat history
+  useEffect(() => {
+    if (chatSessions && chatSessions.length > 0) {
+      assistantContext.setChatHistory(
+        chatSessions.map((s: any) => ({ id: s.id, title: s.title || "Untitled" }))
+      );
+    } else {
+      assistantContext.setChatHistory([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatSessions]);
+
+  const chatVisuals = useMemo(() => {
+    const v: { id: string; type: "bar" | "line" | "pie"; title: string; data: Record<string, unknown>[]; unit?: string }[] = [];
+    if (chartData.length > 0) {
+      v.push({ id: "chat-chart", type: chartType as "bar" | "line" | "pie", title: "Chat Chart", data: chartData as Record<string, unknown>[], unit: chartUnit });
+    }
+    // Also register saved chart snapshots
+    chartSnapshots.forEach((snap) => {
+      v.push({ id: `chat-snap-${snap.id}`, type: snap.type as "bar" | "line" | "pie", title: snap.title, data: snap.data as Record<string, unknown>[], unit: snap.unit });
+    });
+    return v;
+  }, [chartData, chartType, chartUnit, chartSnapshots]);
+
+  const chatSummaries = useMemo(() => {
+    const s = [];
+    s.push({ id: "chat-messages", label: "Messages in session", value: messages.length });
+    if (chartSnapshots.length > 0) s.push({ id: "chat-snapshots", label: "Chart Snapshots", value: chartSnapshots.length });
+    if (bookmarks.length > 0) s.push({ id: "chat-bookmarks", label: "Bookmarked Messages", value: bookmarks.length });
+    return s;
+  }, [messages.length, chartSnapshots.length, bookmarks.length]);
+
+  useRegisterAssistantData({ page: "chat", visuals: chatVisuals, summaries: chatSummaries });
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -1399,7 +1575,7 @@ export default function ChatPage() {
 
       {/* Left Sidebar - Profile & History */}
       {isLeftSidebarOpen && (
-        <div className="w-64 border-r border-border bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm transition-all duration-300">
+        <div data-assistant-id="sidebar" className="w-64 border-r border-border bg-gradient-to-b from-slate-50 to-white flex flex-col overflow-hidden shadow-sm transition-all duration-300">
           <div className="p-4 border-b border-border/40">
             <Link href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity mb-4">
               <ArrowLeft className="w-4 h-4" />
@@ -1737,12 +1913,12 @@ export default function ChatPage() {
                               tabIndex={0}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleDeleteSession(session.id)
+                                requestDeleteSession(session.id)
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.stopPropagation()
-                                  handleDeleteSession(session.id)
+                                  requestDeleteSession(session.id)
                                 }
                               }}
                               className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 text-red-500 cursor-pointer"
@@ -1810,19 +1986,41 @@ export default function ChatPage() {
                 <h3 className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Uploaded Documents</h3>
                 <div className="space-y-2">
                   {uploadedDocuments.map((doc, i) => (
-                    <button
-                      key={`${doc}-${i}`}
-                      onClick={() => {
-                        setSelectedDocumentFilter(doc)
-                        setDocumentOnlyMode(true)
-                      }}
-                      className={`w-full text-left p-2 rounded-lg text-xs transition-colors border ${selectedDocumentFilter === doc && documentOnlyMode
+                    <div
+                      key={`${doc.id || doc.filename}-${i}`}
+                      className={`group relative w-full text-left p-2 rounded-lg text-xs transition-colors border cursor-pointer ${selectedDocumentFilter === doc.filename && documentOnlyMode
                         ? 'border-primary/40 bg-primary/5 text-foreground'
                         : 'border-transparent text-muted-foreground hover:bg-primary/5'
                         }`}
+                      onClick={() => {
+                        setSelectedDocumentFilter(doc.filename)
+                        setDocumentOnlyMode(true)
+                      }}
                     >
-                      {doc}
-                    </button>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="truncate flex-1">{doc.filename}</span>
+                        {doc.id && (
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              requestDeleteDocument(doc.id, doc.filename)
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation()
+                                requestDeleteDocument(doc.id, doc.filename)
+                              }
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 text-red-500 cursor-pointer"
+                            title="Delete document"
+                          >
+                            <X className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -2309,7 +2507,7 @@ export default function ChatPage() {
                   </Button>
                   <div className="w-full md:w-96">
                     <Select
-                      value={selectedDocumentFilter || uploadedDocuments[0]}
+                      value={selectedDocumentFilter || uploadedDocuments[0]?.filename}
                       onValueChange={setSelectedDocumentFilter}
                     >
                       <SelectTrigger className="h-9">
@@ -2317,8 +2515,8 @@ export default function ChatPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {uploadedDocuments.map((doc) => (
-                          <SelectItem key={doc} value={doc}>
-                            {doc}
+                          <SelectItem key={doc.id} value={doc.filename}>
+                            {doc.filename}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -2342,6 +2540,7 @@ export default function ChatPage() {
                 />
                 {/* Upload button */}
                 <Button
+                  data-assistant-id="file-upload"
                   variant="outline"
                   size="lg"
                   className="rounded-full"
@@ -2352,6 +2551,7 @@ export default function ChatPage() {
                   <Upload className="w-4 h-4" />
                 </Button>
                 <Input
+                  data-assistant-id="chat-input"
                   ref={inputFieldRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -2596,6 +2796,43 @@ export default function ChatPage() {
           </>
         )}
       </ResizablePanelGroup>
+
+      {/* Deletion confirmation dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteConfirm?.type === 'session' ? 'Delete Chat' : 'Delete Document'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirm?.type === 'session'
+                ? `Are you sure you want to delete "${deleteConfirm.label}"? This action cannot be undone.`
+                : `Delete "${deleteConfirm?.label}"? This will remove the file and its indexed data.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (!deleteConfirm) return
+                if (deleteConfirm.type === 'session') {
+                  handleDeleteSession(deleteConfirm.id)
+                } else {
+                  const doc = uploadedDocuments.find(d => d.id === deleteConfirm.id)
+                  handleDeleteDocument(deleteConfirm.id, doc?.filename || deleteConfirm.label)
+                }
+                setDeleteConfirm(null)
+              }}
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

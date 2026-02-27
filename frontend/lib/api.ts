@@ -163,6 +163,7 @@ export interface ChatHistoryMessage {
 export interface UploadResponse {
   status: string;
   message: string;
+  document_id?: string;
 }
 
 export interface StatusResponse {
@@ -225,7 +226,7 @@ export async function createChatSession(
   title?: string
 ): Promise<ChatSession> {
   const { data } = await api.post(`/api/users/${userId}/sessions`, { title });
-  return data;
+  return data.session;
 }
 
 export async function getChatSessions(userId: string): Promise<ChatSession[]> {
@@ -240,6 +241,26 @@ export async function getChatMessages(sessionId: string): Promise<ChatMessage[]>
 
 export async function deleteChatSession(sessionId: string): Promise<{ status: string }> {
   const { data } = await api.delete(`/api/sessions/${sessionId}`);
+  return data;
+}
+
+/**
+ * Persist a user + assistant message pair to an existing chat session.
+ * Used by the voice assistant to log conversational exchanges.
+ */
+export async function addSessionMessages(
+  sessionId: string,
+  userMessage: string,
+  assistantMessage: string,
+  sources?: string[],
+  responseTime?: number
+): Promise<{ status: string; userMessage: ChatMessage; assistantMessage: ChatMessage }> {
+  const { data } = await api.post(`/api/sessions/${sessionId}/messages`, {
+    userMessage,
+    assistantMessage,
+    sources,
+    response_time: responseTime,
+  });
   return data;
 }
 
@@ -260,7 +281,7 @@ export async function saveMessage(
   messageId: string,
   note?: string,
   tags?: string[]
-): Promise<{ status: string; saved_message: SavedMessage }> {
+): Promise<{ status: string; saved: SavedMessage }> {
   const { data } = await api.post(`/api/users/${userId}/saved-messages`, {
     message_id: messageId,
     note,
@@ -271,7 +292,7 @@ export async function saveMessage(
 
 export async function getSavedMessages(userId: string): Promise<SavedMessage[]> {
   const { data } = await api.get(`/api/users/${userId}/saved-messages`);
-  return data;
+  return data.messages || [];
 }
 
 // ===========================
@@ -300,6 +321,11 @@ export async function getQueryDistribution(
 
 export async function getUserDocuments(userId: string) {
   const { data } = await api.get(`/api/users/${userId}/documents`);
+  return data.documents || [];
+}
+
+export async function deleteUserDocument(documentId: string): Promise<{ status: string; message: string }> {
+  const { data } = await api.delete(`/api/documents/${documentId}`);
   return data;
 }
 
