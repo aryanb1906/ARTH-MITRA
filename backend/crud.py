@@ -274,6 +274,15 @@ def get_document(db: Session, document_id: str) -> Optional[Document]:
     return db.query(Document).filter(Document.id == document_id).first()
 
 
+def delete_document(db: Session, document_id: str) -> Optional[Document]:
+    """Delete a document record and return it (or None if not found)"""
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if doc:
+        db.delete(doc)
+        db.commit()
+    return doc
+
+
 # ============= SAVED MESSAGES =============
 
 def save_message(

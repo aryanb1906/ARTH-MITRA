@@ -22,6 +22,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { useAssistantContext } from '@/components/voice-assistant/assistant-context-provider'
 
 export default function SettingsPage() {
     const router = useRouter()
@@ -38,6 +39,9 @@ export default function SettingsPage() {
         newPassword: '',
         confirmPassword: '',
     })
+
+    const assistantCtx = useAssistantContext();
+    useEffect(() => { assistantCtx.setCurrentPage("settings"); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
     useEffect(() => {
         if (!user) {
@@ -152,7 +156,7 @@ export default function SettingsPage() {
 
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-                <div className="space-y-6">
+                <div data-assistant-id="settings-section" className="space-y-6">
                     {/* Header */}
                     <div>
                         <h1 className="text-3xl font-bold text-foreground mb-2">Settings</h1>

@@ -730,7 +730,37 @@ class ArthMitraBot:
             "status": "success",
             "message": f"Indexed {len(splits)} chunks from {os.path.basename(file_path)}"
         }
-    
+
+    def remove_document(self, filename: str) -> dict:
+        """Remove all chunks for a given filename from the vector store."""
+        try:
+            if not self.vectorstore:
+                return {"status": "error", "message": "Vector store not initialised"}
+
+            collection = self.vectorstore._collection
+            # Find all chunk IDs whose source matches the filename
+            results = collection.get(include=["metadatas"])
+            ids_to_delete = []
+            for doc_id, meta in zip(results["ids"], results["metadatas"]):
+                if meta and meta.get("source") == filename:
+                    ids_to_delete.append(doc_id)
+
+            if not ids_to_delete:
+                return {"status": "success", "message": f"No chunks found for {filename}", "removed": 0}
+
+            collection.delete(ids=ids_to_delete)
+
+            # Rebuild the RAG chain so it picks up the reduced collection
+            self._create_rag_chain()
+
+            return {
+                "status": "success",
+                "message": f"Removed {len(ids_to_delete)} chunks for {filename}",
+                "removed": len(ids_to_delete),
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to remove document: {str(e)}"}
+
     def _extract_text(self, content) -> str:
         """Extract text from LLM response content"""
         # Debug: log what we receive
