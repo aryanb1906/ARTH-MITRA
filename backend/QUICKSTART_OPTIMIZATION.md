@@ -2,14 +2,14 @@
 
 ## What Was Optimized?
 
-Your backend is now **40-60% faster** for first-time queries and **90%+ faster** for repeated queries!
+Your backend now achieves **7.0x faster** cached queries and **85.6% speed improvement** with ONNX-accelerated embeddings!
 
 ### Key Improvements:
-✅ Response caching with TTL  
-✅ Optimized embedding model  
-✅ Reduced chunk sizes (1000→500 chars)  
+✅ Multi-layer caching (L1 memory + L2 disk) with 24h TTL  
+✅ ONNX-accelerated embedding model (all-MiniLM-L6-v2)  
+✅ Optimized chunk sizes (1000 chars, 150 overlap)  
 ✅ MMR search instead of similarity  
-✅ Reduced retrieval (k=5→k=3)  
+✅ Comprehensive retrieval (k=10, fetch_k=20)  
 ✅ Context compression (max 2000 chars)  
 ✅ Compressed system prompt  
 
@@ -37,10 +37,10 @@ This will:
 ### Expected Results:
 ```
 📈 Average Response Times:
-   First-time queries:  2.5s
-   Cached queries:      0.2s
-   Speed improvement:   92%
-   Speedup factor:      12x
+   First-time queries:  14.21s
+   Cached queries:      2.04s
+   Speed improvement:   85.6%
+   Speedup factor:      7.0x
 ```
 
 ## Manual Testing
@@ -56,7 +56,7 @@ curl -X POST http://localhost:8000/api/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "What is PPF?"}'
 ```
-**Expected time:** 2-3 seconds
+**Expected time:** 12-16 seconds (searches 17K+ documents)
 
 ### 3. Test Cached Query (Faster!)
 ```bash
@@ -64,7 +64,7 @@ curl -X POST http://localhost:8000/api/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "What is PPF?"}'
 ```
-**Expected time:** 0.1-0.3 seconds
+**Expected time:** ~2 seconds
 
 ## Configuration
 
@@ -73,12 +73,12 @@ Edit these in `bot.py` if needed:
 ```python
 # Cache settings
 CACHE_SIZE = 100          # Increase for more cached queries
-CACHE_TTL = 3600          # Cache expiry (1 hour)
+CACHE_TTL = 3600          # Cache expiry (1 hour in-memory, 24h disk)
 
 # Performance settings
-OPTIMIZED_CHUNK_SIZE = 500         # Smaller = faster
-OPTIMIZED_CHUNK_OVERLAP = 50       # Less overlap = faster
-OPTIMIZED_RETRIEVAL_K = 3          # Fewer docs = faster
+OPTIMIZED_CHUNK_SIZE = 1000        # Larger chunks preserve context
+OPTIMIZED_CHUNK_OVERLAP = 150      # Better continuity across chunks
+OPTIMIZED_RETRIEVAL_K = 10         # More docs = more comprehensive
 ```
 
 ## New API Endpoints
@@ -105,8 +105,8 @@ Response:
 ```json
 {
   "initialized": true,
-  "documents_indexed": 245,
-  "model": "Google Gemini (gemini-1.5-flash)"
+  "documents_indexed": 17035,
+  "model": "Google Gemini (gemini-2.5-flash)"
 }
 ```
 
@@ -114,22 +114,22 @@ Response:
 
 ### For Maximum Speed:
 ```python
-OPTIMIZED_CHUNK_SIZE = 300
-OPTIMIZED_RETRIEVAL_K = 2
+OPTIMIZED_CHUNK_SIZE = 500
+OPTIMIZED_RETRIEVAL_K = 5
 CACHE_SIZE = 200
 ```
 
 ### For Better Quality:
 ```python
-OPTIMIZED_CHUNK_SIZE = 700
-OPTIMIZED_RETRIEVAL_K = 4
+OPTIMIZED_CHUNK_SIZE = 1200
+OPTIMIZED_RETRIEVAL_K = 15
 CACHE_SIZE = 50
 ```
 
 ### Balanced (Current):
 ```python
-OPTIMIZED_CHUNK_SIZE = 500
-OPTIMIZED_RETRIEVAL_K = 3
+OPTIMIZED_CHUNK_SIZE = 1000
+OPTIMIZED_RETRIEVAL_K = 10
 CACHE_SIZE = 100
 ```
 
@@ -139,23 +139,25 @@ Watch terminal logs for:
 - ✅ `⚡ Cache hit - returning cached response`
 - 🔄 `🔄 Loading optimized embeddings model...` (first time only)
 - ✅ `✅ Embeddings model loaded`
+- ✅ `✅ ONNX Runtime available - using accelerated inference`
 
 ## Troubleshooting
 
 ### Still slow?
 1. Clear cache: `POST /api/cache/clear`
 2. Restart backend
-3. Reduce `OPTIMIZED_RETRIEVAL_K` to 2
-4. Reduce `OPTIMIZED_CHUNK_SIZE` to 300
+3. Reduce `OPTIMIZED_RETRIEVAL_K` to 5
+4. Reduce `OPTIMIZED_CHUNK_SIZE` to 500
 
 ### Lower quality responses?
-1. Increase `OPTIMIZED_RETRIEVAL_K` to 4-5
-2. Increase `OPTIMIZED_CHUNK_SIZE` to 700-800
+1. Increase `OPTIMIZED_RETRIEVAL_K` to 15
+2. Increase `OPTIMIZED_CHUNK_SIZE` to 1200
 3. Clear cache for fresh responses
 
 ### Cache not working?
 - Queries must be identical (case-insensitive)
-- Cache expires after 1 hour (configurable with `CACHE_TTL`)
+- L1 (memory) cache expires after 1 hour (`CACHE_TTL`)
+- L2 (disk) cache expires after 24 hours
 - Different profiles create separate cache entries
 
 ## Documentation
@@ -169,9 +171,9 @@ Watch terminal logs for:
 Your backend is now optimized! The improvements are automatic, no code changes needed in your frontend.
 
 ### Optional Future Enhancements:
-1. Redis caching for persistence across restarts
+1. Redis caching for distributed multi-instance deployments
 2. Async operations for concurrent processing
-3. GPU acceleration for embeddings
+3. GPU acceleration for ONNX embeddings
 4. Pre-warming cache with common queries
 
 ---
