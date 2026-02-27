@@ -157,9 +157,7 @@ class SavedMessageCreate(BaseModel):
 # Startup/shutdown lifecycle
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Bot will initialize on first request (lazy loading)
     print("⚡ Arth-Mitra API starting up...")
-    print("📝 Bot will initialize on first chat/upload request")
     
     # Initialize database
     print("🔧 Initializing database...")
@@ -181,6 +179,19 @@ async def lifespan(app: FastAPI):
     else:
         print("⚠️ WARNING: No API key configured in .env")
         print("Backend will now run on local llm (Ollama) without external API access")
+    
+    # Eagerly initialize bot and warm up for fast first request
+    print("🔄 Initializing bot and warming up...")
+    try:
+        bot = get_bot()
+        bot.initialize(auto_index=True)
+        print("✅ Bot initialized successfully")
+        
+        from warmup import full_warmup
+        full_warmup(bot)
+    except Exception as e:
+        print(f"⚠️ Startup warmup failed: {e}")
+        print("  Bot will initialize on first request instead")
     
     yield
     # Shutdown: cleanup if needed

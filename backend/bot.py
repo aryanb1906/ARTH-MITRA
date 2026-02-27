@@ -20,8 +20,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from dotenv import load_dotenv
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import ChatOllama
+from onnx_embeddings import OptimizedEmbeddings
+from cache import MultiLayerCache
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 from functools import lru_cache
@@ -41,6 +43,9 @@ CACHE_TTL = 3600  # Cache time-to-live in seconds
 OPTIMIZED_CHUNK_SIZE = 1000  # Larger chunks preserve more document context
 OPTIMIZED_CHUNK_OVERLAP = 150  # Better continuity across chunk boundaries
 OPTIMIZED_RETRIEVAL_K = 10  # Retrieve more candidates for document-grounded answers
+
+# Thread pool for parallel retrieval operations
+_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="rag")
 
 # Month name mappings for date parsing
 MONTH_NAMES = {
@@ -252,51 +257,8 @@ def get_gold_lookup() -> GoldPriceLookup:
     return _gold_lookup
 
 
-class ResponseCache:
-    """Simple in-memory cache for query responses with TTL"""
-    
-    def __init__(self, max_size: int = CACHE_SIZE, ttl: int = CACHE_TTL):
-        self.cache = {}
-        self.max_size = max_size
-        self.ttl = ttl
-    
-    def _get_cache_key(self, query: str, profile: Optional[Dict] = None) -> str:
-        """Generate cache key from query and profile"""
-        cache_data = {"query": query.lower().strip()}
-        if profile:
-            # Only include key profile fields that affect recommendations
-            cache_data["profile"] = {
-                "age": profile.get("age"),
-                "income": profile.get("income"),
-                "taxRegime": profile.get("taxRegime")
-            }
-        return hashlib.md5(json.dumps(cache_data, sort_keys=True).encode()).hexdigest()
-    
-    def get(self, query: str, profile: Optional[Dict] = None) -> Optional[Dict]:
-        """Get cached response if available and not expired"""
-        key = self._get_cache_key(query, profile)
-        if key in self.cache:
-            cached_data, timestamp = self.cache[key]
-            if time.time() - timestamp < self.ttl:
-                return cached_data
-            else:
-                del self.cache[key]  # Remove expired entry
-        return None
-    
-    def set(self, query: str, response: Dict, profile: Optional[Dict] = None):
-        """Cache a response with current timestamp"""
-        key = self._get_cache_key(query, profile)
-        
-        # If cache is full, remove oldest entry
-        if len(self.cache) >= self.max_size:
-            oldest_key = min(self.cache.keys(), key=lambda k: self.cache[k][1])
-            del self.cache[oldest_key]
-        
-        self.cache[key] = (response, time.time())
-    
-    def clear(self):
-        """Clear all cached responses"""
-        self.cache.clear()
+# ResponseCache replaced by MultiLayerCache from cache.py
+# (L1 in-memory + L2 disk, drop-in compatible API)
 
 
 def format_user_profile(profile: Dict) -> str:
@@ -449,8 +411,7 @@ class ArthMitraBot:
         self._initialized = False
         self._retriever = None
         self._indexed_files = set()
-        self._response_cache = ResponseCache()
-        self._embeddings_cache = None  # Will store the model to avoid reloading
+        self._response_cache = MultiLayerCache()
 
     def _append_sources_section(self, response: str, sources: List[str]) -> str:
         """Append an explicit Sources section to the response body."""
@@ -460,9 +421,11 @@ class ArthMitraBot:
         return f"{response}\n\n---\nSources:\n{sources_lines}"
     
     def clear_cache(self):
-        """Clear the response cache"""
+        """Clear all caches (response + embedding)"""
         self._response_cache.clear()
-        print("✅ Response cache cleared")
+        if self.embeddings and hasattr(self.embeddings, 'clear_cache'):
+            self.embeddings.clear_cache()
+        print("✅ Response and embedding caches cleared")
     
     def initialize(self, auto_index: bool = True):
         """Initialize the bot with embeddings and LLM"""
@@ -473,16 +436,13 @@ class ArthMitraBot:
         if not gemini_key and not openrouter_key:
             print("⚠️ No API keys found - will use offline LLM now")
         
-        # Initialize embeddings with faster model and caching
-        # Using a smaller, faster model for better performance
-        if self._embeddings_cache is None:
+        # Initialize ONNX-accelerated embeddings with built-in LRU cache
+        # Falls back to standard HuggingFace if ONNX runtime not available
+        if self.embeddings is None:
             print("🔄 Loading optimized embeddings model...")
-            self._embeddings_cache = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={'normalize_embeddings': True, 'batch_size': 32}  # Batch processing for speed
+            self.embeddings = OptimizedEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2"
             )
-        self.embeddings = self._embeddings_cache
         print("✅ Embeddings model loaded")
         
         # Initialize LLM
@@ -1313,6 +1273,7 @@ If you have questions about current gold investment options in India or tax impl
             cached_response = self._response_cache.get(query, profile)
             if cached_response:
                 print("⚡ Cache hit - returning cached response")
+                cached_response["cached"] = True
                 return cached_response
         
         # Check if this is a gold price query with a specific date
@@ -1370,15 +1331,11 @@ If you have questions about current gold investment options in India or tax impl
         context = "\n\n".join([doc.page_content for doc in source_docs])
         prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", context).replace("{question}", query)
         
-        # Use LLM directly with the customized prompt
-        try:
-            response = self.llm.invoke(prompt)
-            result = self._extract_text(response.content)
-        except Exception as e:
-            print(f"⚠️ LLM invocation failed, returning grounded fallback: {e}")
-            result = "I am facing a temporary model issue. I am sharing grounded details from the retrieved documents instead."
+        # PARALLEL: Submit LLM invocation to thread pool
+        # While LLM processes (~2-10s), extract sources and build metadata
+        future_llm = _executor.submit(self.llm.invoke, prompt)
         
-        # Extract sources
+        # Extract sources while LLM is running
         sources = []
         for doc in source_docs:
             source = doc.metadata.get("source", "Unknown")
@@ -1390,7 +1347,17 @@ If you have questions about current gold investment options in India or tax impl
                 sources.append(source_str)
         
         final_sources = sources if sources else ["Knowledge Base"]
+        # Build metadata in parallel with LLM
         metadata = self._build_response_metadata(query, profile, source_docs, source_filter)
+        
+        # Wait for LLM result
+        try:
+            response = future_llm.result()
+            result = self._extract_text(response.content)
+        except Exception as e:
+            print(f"⚠️ LLM invocation failed, returning grounded fallback: {e}")
+            result = "I am facing a temporary model issue. I am sharing grounded details from the retrieved documents instead."
+        
         response_data = {
             "response": self._append_sources_section(result, final_sources),
             "sources": final_sources,
@@ -1461,6 +1428,11 @@ If you have questions about current gold investment options in India or tax impl
 
             return no_match_stream(), [source_filter], metadata
 
+        # PARALLEL: Submit metadata computation to thread pool while building prompt
+        future_meta = _executor.submit(
+            self._build_response_metadata, query, profile, source_docs, source_filter
+        )
+
         context = "\n\n".join([doc.page_content for doc in source_docs])
         prompt = SYSTEM_PROMPT.replace("{user_profile}", user_profile_text).replace("{chat_history}", chat_history_text).replace("{context}", context).replace("{question}", query)
 
@@ -1475,7 +1447,7 @@ If you have questions about current gold investment options in India or tax impl
                 sources.append(source_str)
 
         final_sources = sources if sources else ["Knowledge Base"]
-        metadata = self._build_response_metadata(query, profile, source_docs, source_filter)
+        metadata = future_meta.result()
         metadata["cached"] = False
 
         def doc_stream():
