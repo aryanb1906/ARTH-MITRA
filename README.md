@@ -52,9 +52,10 @@
 - 🧠 **Trust & Advisory Layer**: confidence score, why-this-answer, source highlights, scheme ranking, compare mode, and action plans.
 - 📤 **Chat Export Improvements**: clean **HTML/PDF** exports with proper tables, metadata, and readable formatting.
 - ⚡ **Performance Re-Benchmark Completed** (`backend/test_performance.py`):
-  - Cold average: **12.78s → 14.87s** (larger corpus)
-  - Cached average: **2.53s → 2.05s** (faster)
-  - Cache speedup: **5.05x → 7.3x**
+  - Cold average: **12.78s → 14.21s** (larger corpus, ONNX-optimized)
+  - Cached average: **2.53s → 2.04s** (faster)
+  - Cache speedup: **5.05x → 7.0x**
+  - Profile query speedup: **9.1x**
 
 ### 🚀 Core Capabilities
 
@@ -401,12 +402,13 @@ Formatted Response → User-Friendly Language → Actionable Steps → Disclaime
 ```
 
 **Key Metrics:**
-- 📊 Response Latency: ~11.3 seconds avg (first query), ~4ms (cached)
+- 📊 Response Latency: ~14.2 seconds avg (first query), ~2.04s (cached), ~4ms (L1 cache hit)
 - 🎯 Accuracy: 100% coverage on eval benchmark
 - 📖 Context Window: Up to 2000 tokens
 - 🔄 Cache Architecture: L1 memory + L2 disk (24h TTL)
 - ⚡ Retrieval Speed: ~18ms avg (ONNX-accelerated)
 - 🔀 Parallel Processing: LLM + metadata concurrent execution
+- 🧾 Profile Query Speedup: 9.1x (18.5s → 2.04s)
 
 ---
 
@@ -798,15 +800,17 @@ Total Potential Saving: ₹5,00,000+ over loan tenure!
 
 ### System Performance Benchmarks
 
-Our RAG (Retrieval-Augmented Generation) system has been benchmarked twice and compared to show progress over time.
+Our RAG (Retrieval-Augmented Generation) system has been benchmarked three times and compared to show progress over time.
 
 #### **System Configuration**
-- **Documents Indexed (Latest)**: 16,919 financial documents
+- **Documents Indexed (Latest)**: 17,035 financial documents
 - **AI Model**: OpenRouter (gpt-4o-mini)
 - **Vector Database**: ChromaDB
+- **Embeddings**: ONNX-accelerated all-MiniLM-L6-v2 (O2 optimized)
+- **Caching**: Multi-layer (L1 in-memory LRU + L2 disk JSON, 24h TTL)
 - **Status**: ✅ Fully Operational
 
-#### **Response Time Performance (Latest Run: Feb 26, 2026)**
+#### **Response Time Performance (Latest Run: Feb 27, 2026)**
 
 <table>
 <tr>
@@ -816,11 +820,11 @@ Our RAG (Retrieval-Augmented Generation) system has been benchmarked twice and c
 
 | Query Type | Response Time |
 |-----------|---------------|
-| PPF Information | 14.79s |
-| NPS Schemes | 12.19s |
-| ELSS Tax Benefits | 12.82s |
-| 80C Deductions | 19.68s |
-| **Average** | **14.87s** |
+| PPF Information | 15.69s |
+| NPS Schemes | 12.51s |
+| ELSS Tax Benefits | 12.31s |
+| 80C Deductions | 16.31s |
+| **Average** | **14.21s** |
 
 </td>
 <td>
@@ -829,65 +833,79 @@ Our RAG (Retrieval-Augmented Generation) system has been benchmarked twice and c
 
 | Query Type | Response Time | Speedup |
 |-----------|---------------|---------|
-| PPF Information | 2.03s | ⚡ **7.3x** |
-| NPS Schemes | 2.06s | ⚡ **5.9x** |
-| ELSS Tax Benefits | 2.05s | ⚡ **6.3x** |
-| 80C Deductions | 2.05s | ⚡ **9.6x** |
-| **Average** | **2.05s** | ⚡ **7.3x** |
+| PPF Information | 2.03s | ⚡ **7.7x** |
+| NPS Schemes | 2.04s | ⚡ **6.1x** |
+| ELSS Tax Benefits | 2.05s | ⚡ **6.0x** |
+| 80C Deductions | 2.05s | ⚡ **8.0x** |
+| **Average** | **2.04s** | ⚡ **7.0x** |
 
 </td>
 </tr>
 </table>
 
-#### **Old vs New (Baseline Comparison)**
+#### **Profile-Specific Query Performance**
 
-| Metric | Old (Feb 16) | New (Feb 26) | Delta | Outcome |
-|--------|--------------|--------------|-------|---------|
-| Documents Indexed | 11,132 | 16,919 | +5,787 | Larger knowledge coverage |
-| Avg Cold Query | 12.78s | 14.87s | +2.09s | Slower cold-start |
-| Avg Cached Query | 2.53s | 2.05s | -0.48s | Faster repeat queries |
-| Cache Speedup | 5.05x | 7.3x | +2.25x | Better cache effect |
-| Speed Improvement | 80.2% | 86.2% | +6.0 pp | Stronger repeat UX |
+| Scenario | Response Time | Speedup |
+|----------|---------------|---------|
+| Profile query (first) | 18.50s | — |
+| Profile query (cached) | 2.04s | ⚡ **9.1x** |
+
+#### **Historical Comparison (3 Benchmark Runs)**
+
+| Metric | Baseline (Feb 16) | Run 2 (Feb 26) | Latest (Feb 27) | Trend |
+|--------|-------------------|----------------|-----------------|-------|
+| Documents Indexed | 11,132 | 16,919 | 17,035 | 📈 +53% total growth |
+| Avg Cold Query | 12.78s | 14.87s | 14.21s | ✅ Improving after ONNX |
+| Avg Cached Query | 2.53s | 2.05s | 2.04s | ⚡ Consistently faster |
+| Cache Speedup | 5.05x | 7.3x | 7.0x | ⚡ Stable high leverage |
+| Speed Improvement | 80.2% | 86.2% | 85.6% | ⚡ Strong repeat UX |
 
 #### **Key Performance Indicators**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  🎯  Cache Performance:        86.2% faster on repeat queries│
+│  🎯  Cache Performance:        85.6% faster on repeat queries│
 │  ✅  Success Rate:             100% (zero errors)            │
-│  📊  Average Speedup:          7.3x for cached queries       │
-│  🔍  Source Retrieval:         Multi-source retrieval         │
-│  💾  Documents Searchable:     16,919 indexed documents      │
-│  ⚡  Time Saved per Cache:     ~12.82 seconds average        │
+│  📊  Average Speedup:          7.0x for cached queries       │
+│  🔍  Source Retrieval:         8-10 sources per query         │
+│  💾  Documents Searchable:     17,035 indexed documents      │
+│  ⚡  Time Saved per Cache:     ~12.17 seconds average        │
+│  🔀  Retrieval Latency:        ~18ms avg (ONNX-accelerated)  │
+│  🧾  Profile Query Speedup:    9.1x                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 #### **Performance Highlights**
 
-✅ **Excellent Cache Efficiency**: 86.2% reduction in response time for repeat queries  
-✅ **High Reliability**: 100% success rate with zero errors during testing  
-✅ **Improved Cached Latency**: 2.05s average on repeat queries  
-✅ **Scalable Architecture**: Handles 16K+ documents efficiently  
-✅ **Consistent Performance**: Stable response times across different query types
+✅ **Excellent Cache Efficiency**: 85.6% reduction in response time for repeat queries  
+✅ **High Reliability**: 100% success rate with zero errors across all benchmark runs  
+✅ **Improved Cached Latency**: 2.04s average on repeat queries  
+✅ **Scalable Architecture**: Handles 17K+ documents efficiently  
+✅ **Consistent Performance**: Stable response times across different query types  
+✅ **ONNX Acceleration**: Embedding retrieval down to ~18ms avg (from ~41ms pre-ONNX)  
+✅ **Profile-Aware Caching**: 9.1x speedup on personalized profile queries
 
 #### **Real-World Impact**
 
 | Metric | Value | Business Impact |
 |--------|-------|-----------------|
-| **First-Time Users** | ~14.9s | Acceptable but needs cold-start optimization |
-| **Returning Users** | ~2.1s | Excellent UX for repeat questions |
-| **API Cost Savings** | 7.3x | Significantly reduced LLM API calls via caching |
-| **Popular Query Speed** | 86.2% faster | Improved engagement & retention |
+| **First-Time Users** | ~14.2s | Within industry range; ONNX warming helps reduce cold-starts |
+| **Returning Users** | ~2.0s | Excellent UX for repeat questions |
+| **Profile Queries** | 18.5s → 2.0s | 9.1x speedup for personalized advice |
+| **API Cost Savings** | 7.0x | Significantly reduced LLM API calls via caching |
+| **Popular Query Speed** | 85.6% faster | Improved engagement & retention |
+| **Retrieval Latency** | ~18ms | Near-instant vector search via ONNX |
 
 #### **Comparative Performance**
 
 | Benchmark | ARTH-MITRA | Industry Average | Result |
 |-----------|------------|------------------|--------|
-| Cold Start Query | 14.87s | 10-15s | ✅ Within range |
-| Cached Query | 2.05s | 3-5s | ⚡ Above average |
-| Cache Speedup | 7.3x | 2-3x | ⚡ Excellent |
-| Document Volume | 16,919 | 1K-5K | ⚡ Advanced |
+| Cold Start Query | 14.21s | 10-15s | ✅ Within range |
+| Cached Query | 2.04s | 3-5s | ⚡ Above average |
+| Cache Speedup | 7.0x | 2-3x | ⚡ Excellent |
+| Document Volume | 17,035 | 1K-5K | ⚡ Advanced |
 | Success Rate | 100% | 95-98% | ⚡ Exceptional |
+| Retrieval Latency | 18ms | 50-200ms | ⚡ Best-in-class |
 
 > 📊 **Full Performance Report**: See [PERFORMANCE_METRICS.md](backend/PERFORMANCE_METRICS.md) for detailed analysis, test methodology, and optimization recommendations.
 
