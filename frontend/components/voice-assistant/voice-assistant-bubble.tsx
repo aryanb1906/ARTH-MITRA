@@ -83,12 +83,12 @@ function isFinanceQuery(text: string): boolean {
   return FINANCE_RE.test(text);
 }
 
-// ─── TTS truncation for long responses ───────────────────────────
+// ─── TTS truncation for long responses ──────────────────────────
 const TTS_MAX_WORDS = 150;
 const TTS_TRUNCATION_SUFFIX_EN = "… For the full answer, please check the chat.";
 const TTS_TRUNCATION_SUFFIX_HI = "… पूरा जवाब चैट में देखें।";
 
-/** Truncate text to TTS_MAX_WORDS for speech; returns original + isTruncated flag */
+/** Truncate text to TTS_MAX_WORDS for speech; full text stays in lastReply */
 function truncateForTTS(text: string, lang: string): { spoken: string; truncated: boolean } {
   const words = text.split(/\s+/);
   if (words.length <= TTS_MAX_WORDS) return { spoken: text, truncated: false };
@@ -97,7 +97,7 @@ function truncateForTTS(text: string, lang: string): { spoken: string; truncated
   return { spoken: cut + suffix, truncated: true };
 }
 
-// ─── Conversation memory (sessionStorage, last 20 turns) ────────
+// ─── Conversation memory (sessionStorage, last 20 turns, 30-min TTL) ─
 const MEMORY_KEY = "arth_voice_memory";
 const MEMORY_ACTIVITY_KEY = "arth_voice_memory_ts";
 const MAX_TURNS = 20;
@@ -109,7 +109,7 @@ interface VoiceTurn {
   ts: number;
 }
 
-/** Load memory with auto-cleanup: clears turns older than 30 min of inactivity */
+/** Load memory with auto-cleanup: clears if >30 min of inactivity */
 function loadMemory(): VoiceTurn[] {
   try {
     const lastActivity = sessionStorage.getItem(MEMORY_ACTIVITY_KEY);
@@ -330,7 +330,7 @@ export function VoiceAssistantBubble() {
   // System-status message (shown in floating tooltip only for system actions)
   const [systemStatus, setSystemStatus] = useState<string | null>(null);
 
-  // ── Abort controller for cancellable API requests (Feature 1) ──
+  // ── Abort controller for cancellable API requests ──
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Hooks
@@ -873,7 +873,7 @@ export function VoiceAssistantBubble() {
     guiding: "ring-purple-400/30",
   };
 
-  // Mic is disabled when TTS is in progress (loading or playing) — processing is now cancellable
+  // Mic is disabled when TTS is in progress — processing is now cancellable
   const micDisabled = isSpeaking;
 
   if (!micSupported) return null;

@@ -1218,18 +1218,18 @@ def voice_assistant(request: AssistantRequest, db: Session = Depends(get_db)):
         # Log interaction with enhanced analytics
         if request.userId:
             try:
-                action_type = action_data.get("type", "none") if isinstance(action_data, dict) else "none"
-                follow_up_count = len(follow_ups) if isinstance(follow_ups, list) else 0
+                _action_log = action_data.get("type", "none") if isinstance(action_data, dict) else "none"
+                _follow_up_count = len(follow_ups) if isinstance(follow_ups, list) else 0
                 crud.log_analytics(db, request.userId, "voice_assistant", {
                     "userText": request.userText[:200],
                     "route": ctx.currentRoute,
-                    "action": action_type,
+                    "action": _action_log,
                     "responseTime": round(response_time, 3),
                     "language": request.language or "en",
                     "isFinanceRelated": is_finance_related,
                     "replyLength": len(reply_text),
-                    "followUpCount": follow_up_count,
-                    "hadAction": action_type != "none",
+                    "followUpCount": _follow_up_count,
+                    "hadAction": _action_log != "none",
                     "inputLength": len(request.userText),
                 })
             except Exception:
