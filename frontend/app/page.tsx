@@ -418,9 +418,6 @@ export default function Page() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button className="bg-white border border-border transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 active:scale-95">
-              Schedule a Demo
-            </Button>
           </div>
         </div>
       </section>
@@ -458,10 +455,7 @@ export default function Page() {
           <div className="grid md:grid-cols-5 gap-12 mb-12">
             <div className="md:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">AM</span>
-                </div>
-                <span className="font-bold text-foreground">Arth-Mitra</span>
+                  <Logo size="md" showText={false} href="/" />
               </div>
               <p className="text-sm text-muted-foreground">Making Indian finance simple for everyone.</p>
             </div>
