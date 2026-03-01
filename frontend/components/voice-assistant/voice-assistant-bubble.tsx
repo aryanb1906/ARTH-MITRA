@@ -518,10 +518,6 @@ export function VoiceAssistantBubble() {
         if (quickResult.clientAction === "toggle_language") {
           toggleLanguage();
         }
-        if (quickResult.clientAction === "toggle_theme") {
-          // Dispatch theme toggle event for the app
-          document.documentElement.classList.toggle("dark");
-        }
         if (quickResult.clientAction === "read_page") {
           // Read visible page content
           const main = document.querySelector("main") || document.body;

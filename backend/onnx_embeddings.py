@@ -41,7 +41,10 @@ class OptimizedEmbeddings(Embeddings):
             self._st_model = SentenceTransformer(
                 model_name,
                 backend="onnx",
-                model_kwargs={"file_name": "onnx/model_O2.onnx"},  # O2 optimized: best speed/quality
+                model_kwargs={
+                    "file_name": "onnx/model_O2.onnx",  # O2 optimized: best speed/quality
+                    "provider": "CPUExecutionProvider",   # CPU-only, avoids TensorRT/CUDA warnings
+                },
             )
             self._use_onnx = True
             print("⚡ Using ONNX-accelerated embeddings (2-3x faster on CPU)")

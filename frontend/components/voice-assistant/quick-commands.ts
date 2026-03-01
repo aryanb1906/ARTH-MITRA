@@ -8,7 +8,7 @@ export interface QuickCommandResult {
   /** Optional navigation target */
   navigateTo?: string;
   /** Optional client-side action */
-  clientAction?: "new_chat" | "toggle_language" | "toggle_theme" | "stop" | "read_page" | "summarize" | "export";
+  clientAction?: "new_chat" | "toggle_language" | "stop" | "read_page" | "summarize" | "export";
   /** Language for the reply */
   lang?: string;
 }
@@ -95,20 +95,6 @@ const COMMANDS: QuickCommand[] = [
       reply: "Switched to English.",
       clientAction: "toggle_language",
       lang: "en",
-    }),
-  },
-  {
-    pattern: /^(?:dark\s*mode|डार्क\s*मोड)$/i,
-    handler: () => ({
-      reply: "Switching to dark mode.",
-      clientAction: "toggle_theme",
-    }),
-  },
-  {
-    pattern: /^(?:light\s*mode|लाइट\s*मोड)$/i,
-    handler: () => ({
-      reply: "Switching to light mode.",
-      clientAction: "toggle_theme",
     }),
   },
 
