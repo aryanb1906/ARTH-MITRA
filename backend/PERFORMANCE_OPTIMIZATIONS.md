@@ -9,9 +9,9 @@ This document outlines the performance optimizations implemented to achieve **7.
 - **What**: L1 (in-memory LRU) + L2 (disk JSON) cache for frequently asked queries
 - **Impact**: 7.0x speedup for repeat queries (9.1x for profile queries)
 - **Configuration**:
-  - L1 memory limit: 200 entries
+  - L1 memory limit: 200 entries (`CACHE_MEMORY_MAX`)
   - L2 disk: persistent JSON files in `response_cache/`
-  - TTL: 24 hours (disk), 1 hour (memory via `CACHE_TTL`)
+  - TTL: 24 hours (`CACHE_TTL_HOURS`)
   - Cache key: Based on query + user profile (age, income, tax regime)
 - **Usage**: Automatic - no code changes needed
 
@@ -77,8 +77,8 @@ Edit these in [bot.py](bot.py) to fine-tune performance:
 
 ```python
 # Cache settings
-CACHE_SIZE = 100  # Number of queries to cache (L1 memory)
-CACHE_TTL = 3600  # L1 cache expiry in seconds (1 hour)
+CACHE_MEMORY_MAX = 200  # Max L1 in-memory entries
+CACHE_TTL_HOURS = 24    # Cache expiry in hours (L1 and L2)
 
 # Chunk settings
 OPTIMIZED_CHUNK_SIZE = 1000  # Characters per chunk
@@ -125,7 +125,7 @@ GET http://localhost:8000/api/status
 
 ### 1. **Monitor Cache Performance**
 - Clear cache periodically if data changes frequently
-- Increase `CACHE_SIZE` if you have many unique queries
+- Increase `CACHE_MEMORY_MAX` if you have many unique queries
 - L2 disk cache persists across restarts automatically
 
 ### 2. **Adjust Retrieval Settings**
@@ -194,7 +194,7 @@ time curl -X POST http://localhost:8000/api/chat \
 
 ### Cache not working?
 1. Check that queries are identical (case-insensitive)
-2. Verify L1 cache hasn't expired (check `CACHE_TTL`)
+2. Verify cache hasn't expired (check `CACHE_TTL_HOURS`, default 24h)
 3. Check L2 disk files in `response_cache/` directory
 4. Monitor cache hits in logs
 

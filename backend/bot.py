@@ -38,8 +38,8 @@ UPLOADS_DIR = "./uploads"  # Runtime uploaded documents
 GOLD_DATA_PATH = os.path.join(DOCS_DIR, "gold_data.csv")
 
 # Performance optimization settings
-CACHE_SIZE = 100  # Number of queries to cache
-CACHE_TTL = 3600  # Cache time-to-live in seconds
+CACHE_MEMORY_MAX = 200  # Max L1 (in-memory LRU) entries
+CACHE_TTL_HOURS = 24    # Cache expiry in hours (applies to both L1 and L2 disk)
 OPTIMIZED_CHUNK_SIZE = 1000  # Larger chunks preserve more document context
 OPTIMIZED_CHUNK_OVERLAP = 150  # Better continuity across chunk boundaries
 OPTIMIZED_RETRIEVAL_K = 10  # Retrieve more candidates for document-grounded answers
@@ -411,7 +411,10 @@ class ArthMitraBot:
         self._initialized = False
         self._retriever = None
         self._indexed_files = set()
-        self._response_cache = MultiLayerCache()
+        self._response_cache = MultiLayerCache(
+            memory_max=CACHE_MEMORY_MAX,
+            ttl_hours=CACHE_TTL_HOURS,
+        )
 
     def _append_sources_section(self, response: str, sources: List[str]) -> str:
         """Append an explicit Sources section to the response body."""

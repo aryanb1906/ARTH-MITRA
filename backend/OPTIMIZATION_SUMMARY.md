@@ -15,8 +15,8 @@
 
 **New Configuration Variables:**
 ```python
-CACHE_SIZE = 100
-CACHE_TTL = 3600
+CACHE_MEMORY_MAX = 200
+CACHE_TTL_HOURS = 24
 OPTIMIZED_CHUNK_SIZE = 1000
 OPTIMIZED_CHUNK_OVERLAP = 150
 OPTIMIZED_RETRIEVAL_K = 10
@@ -87,21 +87,21 @@ Watch terminal logs for:
 
 ### For Maximum Speed (Aggressive):
 ```python
-CACHE_SIZE = 200
+CACHE_MEMORY_MAX = 300
 OPTIMIZED_CHUNK_SIZE = 500
 OPTIMIZED_RETRIEVAL_K = 5
 ```
 
 ### For Better Quality (Conservative):
 ```python
-CACHE_SIZE = 50
+CACHE_MEMORY_MAX = 100
 OPTIMIZED_CHUNK_SIZE = 1200
 OPTIMIZED_RETRIEVAL_K = 15
 ```
 
 ### Balanced (Current - Recommended):
 ```python
-CACHE_SIZE = 100
+CACHE_MEMORY_MAX = 200
 OPTIMIZED_CHUNK_SIZE = 1000
 OPTIMIZED_RETRIEVAL_K = 10
 ```

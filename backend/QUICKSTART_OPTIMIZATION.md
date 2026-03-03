@@ -72,8 +72,8 @@ Edit these in `bot.py` if needed:
 
 ```python
 # Cache settings
-CACHE_SIZE = 100          # Increase for more cached queries
-CACHE_TTL = 3600          # Cache expiry (1 hour in-memory, 24h disk)
+CACHE_MEMORY_MAX = 200    # Max L1 in-memory entries
+CACHE_TTL_HOURS = 24      # Cache expiry in hours (L1 and L2)
 
 # Performance settings
 OPTIMIZED_CHUNK_SIZE = 1000        # Larger chunks preserve context
@@ -116,21 +116,21 @@ Response:
 ```python
 OPTIMIZED_CHUNK_SIZE = 500
 OPTIMIZED_RETRIEVAL_K = 5
-CACHE_SIZE = 200
+CACHE_MEMORY_MAX = 300
 ```
 
 ### For Better Quality:
 ```python
 OPTIMIZED_CHUNK_SIZE = 1200
 OPTIMIZED_RETRIEVAL_K = 15
-CACHE_SIZE = 50
+CACHE_MEMORY_MAX = 100
 ```
 
 ### Balanced (Current):
 ```python
 OPTIMIZED_CHUNK_SIZE = 1000
 OPTIMIZED_RETRIEVAL_K = 10
-CACHE_SIZE = 100
+CACHE_MEMORY_MAX = 200
 ```
 
 ## Monitoring Performance
@@ -156,8 +156,7 @@ Watch terminal logs for:
 
 ### Cache not working?
 - Queries must be identical (case-insensitive)
-- L1 (memory) cache expires after 1 hour (`CACHE_TTL`)
-- L2 (disk) cache expires after 24 hours
+- Cache expires after 24 hours (`CACHE_TTL_HOURS`)
 - Different profiles create separate cache entries
 
 ## Documentation
