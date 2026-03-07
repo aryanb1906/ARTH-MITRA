@@ -25,7 +25,7 @@
 
 - 🗣️ **Full Voice Assistant**: Floating bubble with speech-to-text (Web Speech API) and text-to-speech (browser SpeechSynthesis + server-side OpenAI TTS) — talk to Arth-Mitra hands-free.
 - 🇮🇳 **Trilingual Support**: English, Hindi (Devanagari), and Hinglish — 100+ finance keywords in all three for automatic language detection.
-- 🧭 **13 Quick Voice Commands**: Navigate pages, toggle dark/light mode, start new chat, switch language, read/summarize current page, export conversation — all by voice.
+- 🧭 **13 Quick Voice Commands**: Navigate pages, start new chat, switch language, read/summarize current page, export conversation — all by voice.
 - 🧩 **Multi-Turn Guided Flows**: Voice-driven tax calculation wizard (4 steps) and scheme finder (3 steps) with field validation and auto-navigation.
 - 🎬 **Animated Avatar**: SVG character with 5 states (idle, listening, processing, speaking, guiding) and CSS keyframe animations.
 - 📊 **Real-Time Audio Visualizer**: Mic waveform bars via Web Audio API AnalyserNode during recording.
