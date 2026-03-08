@@ -9,6 +9,7 @@ import shutil
 from contextlib import asynccontextmanager
 import json
 import time
+from inflation_engine import analyze_investment_plan
 
 from bot import initialize_bot, get_bot
 from database import get_db, init_db
@@ -216,6 +217,23 @@ app.add_middleware(
 UPLOAD_DIR = "./uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+@app.post("/api/finance/check-goal")
+async def check_goal_inflation(data: dict):
+    """
+    Endpoint to calculate inflation-adjusted goals and SIPs.
+    Expects JSON: { "goal_type": "Education", "amount": 1000000, "years": 10 }
+    """
+    goal_type = data.get("goal_type", "general")
+    amount = data.get("amount", 0)
+    years = data.get("years", 1)
+
+    analysis = analyze_investment_plan(
+        goal_type=goal_type,
+        current_amount=float(amount),
+        years=int(years)
+    )
+    
+    return analysis
 
 @app.get("/ping")
 def health():

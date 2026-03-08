@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, User, Settings, BarChart3 } from 'lucide-react';
+import { LogOut, User, Settings, BarChart3, Target, Calculator } from 'lucide-react';
 import Link from 'next/link';
 
 export function UserMenu() {
@@ -60,6 +60,19 @@ export function UserMenu() {
           <Link href="/chat" className="cursor-pointer">
             <User className="mr-2 h-4 w-4" />
             <span>Chat</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/tax-calculator" className="cursor-pointer">
+            <Calculator className="mr-2 h-4 w-4" />
+            <span>Tax Calculator</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link href="/goal-planner" className="cursor-pointer">
+            <Target className="mr-2 h-4 w-4" />
+            <span>Goal Planner</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
