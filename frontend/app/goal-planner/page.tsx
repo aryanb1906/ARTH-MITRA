@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, TrendingUp, ShieldCheck, AlertCircle } from "lucide-react";
+import { ArrowLeft, BrainCircuit, TrendingUp, ShieldCheck, AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function GoalPlanner() {
+  const router = useRouter();
   const [target, setTarget] = useState<number>(1000000);
   const [years, setYears] = useState<number>(3);
   const [sector, setSector] = useState<string>("Lifestyle");
@@ -34,6 +36,9 @@ export default function GoalPlanner() {
   return (
     <div className="container mx-auto p-6 max-w-5xl space-y-8">
       <div className="flex items-center gap-3 border-b pb-4">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <BrainCircuit className="text-primary w-10 h-10" />
         <div>
           <h1 className="text-3xl font-bold">AI Goal Planner</h1>
