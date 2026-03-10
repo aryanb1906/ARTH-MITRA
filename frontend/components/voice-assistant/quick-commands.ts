@@ -62,6 +62,13 @@ const COMMANDS: QuickCommand[] = [
       navigateTo: "/profile-setup",
     }),
   },
+  {
+    pattern: /^(?:go\s+(?:to\s+)?(?:goal\s*)?planner|open\s+(?:goal\s*)?planner|goal\s*planner|गोल\s*प्लानर\s*(?:खोलो)?|लक्ष्य\s*(?:योजना|प्लानर)\s*(?:खोलो)?|goal\s*plan(?:ning)?|plan\s+(?:my\s+)?goals?)$/i,
+    handler: () => ({
+      reply: "Opening the goal planner.",
+      navigateTo: "/goal-planner",
+    }),
+  },
 
   // ── Chat actions ──
   {
