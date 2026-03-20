@@ -63,6 +63,9 @@ export default function Page() {
             <Link href="/tax-calculator" className="text-sm text-foreground hover:text-primary transition-all duration-200 hover:-translate-y-0.5 active:scale-95 font-medium bg-primary/10 px-3 py-1 rounded-lg hover:bg-primary/20">
               Tax Calculator
             </Link>
+            <Link href="/goal-planner" className="text-sm text-foreground hover:text-primary transition-all duration-200 hover:-translate-y-0.5 active:scale-95 font-medium bg-primary/10 px-3 py-1 rounded-lg hover:bg-primary/20">
+              Goal Planner
+            </Link>
             <AuthButtons />
           </div>
           <div className="md:hidden">

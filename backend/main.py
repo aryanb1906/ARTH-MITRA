@@ -9,7 +9,6 @@ import shutil
 from contextlib import asynccontextmanager
 import json
 import time
-from inflation_engine import analyze_investment_plan
 
 from bot import initialize_bot, get_bot
 from database import get_db, init_db
@@ -217,23 +216,119 @@ app.add_middleware(
 UPLOAD_DIR = "./uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+from langchain_core.messages import HumanMessage
+import re
+
 @app.post("/api/finance/check-goal")
 async def check_goal_inflation(data: dict):
     """
-    Endpoint to calculate inflation-adjusted goals and SIPs.
-    Expects JSON: { "goal_type": "Education", "amount": 1000000, "years": 10 }
+    Upgraded Endpoint: Calculates math in Python, then uses the existing 
+    Arth-Mitra bot LLM to generate specific Indian scheme allocations.
     """
-    goal_type = data.get("goal_type", "general")
-    amount = data.get("amount", 0)
-    years = data.get("years", 1)
+    goal_type = data.get("goal_type", "General")
+    amount = float(data.get("amount", 0))
+    years = int(data.get("years", 1))
+    risk_profile = data.get("risk_profile", "Moderate")
 
-    analysis = analyze_investment_plan(
-        goal_type=goal_type,
-        current_amount=float(amount),
-        years=int(years)
-    )
+    # 1. HARDCODED MATH (For 100% accuracy)
+    INFLATION_RATES = {
+        "Education": 0.105, "Medical": 0.14, "Lifestyle": 0.06,
+        "Home": 0.06, "Retirement": 0.06, "General": 0.045
+    }
+    EXPECTED_RETURNS = {
+        "Conservative": 0.07, # 7% (FDs, PPF)
+        "Moderate": 0.10,     # 10% (Balanced, Index)
+        "Aggressive": 0.12    # 12% (Small/Mid Cap)
+    }
+
+    inflation_rate = INFLATION_RATES.get(goal_type, 0.06)
+    expected_return = EXPECTED_RETURNS.get(risk_profile, 0.10)
+
+    # Calculate Future Value
+    future_value = round(amount * ((1 + inflation_rate) ** years), 0)
+
+    # Calculate SIP
+    if expected_return == 0 or years == 0:
+        sip_amount = future_value / max((years * 12), 1)
+    else:
+        monthly_rate = expected_return / 12
+        months = years * 12
+        sip = (future_value * monthly_rate) / (((1 + monthly_rate)**months) - 1)
+        sip = sip / (1 + monthly_rate)
+        sip_amount = round(sip, 0)
+
+    # 2. USE EXISTING AI BOT FOR STRATEGY
+    bot = get_bot()
+    if not bot._initialized:
+        bot.initialize(auto_index=True)
+
+    prompt = f"""
+    You are Arth-Mitra, the most advanced Indian Financial Advisor AI.
+    Current Date: March 2026.
+
+    USER DATA:
+    - Goal: {goal_type} ({years} years)
+    - Risk Profile: {risk_profile}
+    - Monthly SIP Needed: ₹{sip_amount}
+
+    TASK:
+    Divide this ₹{sip_amount} into a high-performing 2026 Indian portfolio.
     
-    return analysis
+    STRATEGY RULES:
+    1. For 'Aggressive' + Long term: Recommend 'Nippon India Small Cap' or 'Quant Small Cap'.
+    2. For 'Moderate' + Any term: Recommend 'Parag Parikh Flexi Cap' or 'HDFC Flexi Cap'.
+    3. For 'Education': If years > 10, strongly suggest 'Sukanya Samriddhi Yojana (SSY)' (8.2% tax-free).
+    4. For 'Retirement': Suggest 'NPS Tier-1' for the extra 50k tax benefit.
+    5. For 'Conservative': Suggest 'SCSS' (8.2%) or 'RBI Floating Rate Bonds' (8.05%).
+    6. Ensure specific scheme names are used, not just categories.
+
+    Return ONLY a valid JSON:
+    {{
+      "advice": "Short professional strategy summary.",
+      "allocation": [
+         {{ "name": "Asset Category", "value": percentage, "amount": rupees }}
+      ],
+      "specific_schemes": [
+         {{ "name": "Exact Fund/Scheme Name", "category": "Type", "amount": rupees, "reason": "Why this is best in 2026?" }}
+      ]
+    }}
+    """
+
+    try:
+        # Call the existing LLM (Gemini/OpenRouter/Ollama) directly
+        response = bot.llm.invoke([HumanMessage(content=prompt)])
+        raw_text = response.content if hasattr(response, "content") else str(response)
+
+        # Clean JSON from potential markdown tags (```json ... ```)
+        cleaned = raw_text.strip()
+        cleaned = re.sub(r'^```json\s*', '', cleaned)
+        cleaned = re.sub(r'```\s*$', '', cleaned)
+
+        ai_data = json.loads(cleaned)
+
+        return {
+            "future_value": future_value,
+            "sip_amount": sip_amount,
+            "advice": ai_data.get("advice", "Start saving today."),
+            "allocation": ai_data.get("allocation", []),
+            "specific_schemes": ai_data.get("specific_schemes", [])
+        }
+    except Exception as e:
+        print(f"Goal Planner AI Error: {e}")
+        # Safe fallback so the UI never crashes
+        return {
+            "future_value": future_value,
+            "sip_amount": sip_amount,
+            "advice": f"Based on your {years}-year horizon and {risk_profile} risk, a balanced approach is best.",
+            "allocation": [
+                {"name": "Growth Assets", "value": 60, "amount": sip_amount * 0.6},
+                {"name": "Safe Assets", "value": 40, "amount": sip_amount * 0.4}
+            ],
+            "specific_schemes": [
+                {"name": "Flexi Cap Mutual Fund", "category": "Growth", "amount": sip_amount * 0.6, "reason": "Diversified growth over time."},
+                {"name": "Bank Recurring Deposit (RD)", "category": "Safe", "amount": sip_amount * 0.4, "reason": "Guaranteed capital protection."}
+            ]
+        }
 
 @app.get("/ping")
 def health():

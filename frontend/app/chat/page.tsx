@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, ArrowDown, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X, Pencil, Check, Copy, Shuffle } from 'lucide-react'
+import { ArrowLeft, ArrowDown, Send, Bookmark, Clock, User, Wallet, Plus, MoreVertical, RefreshCw, MessageSquare, Zap, AlertCircle, Upload, FileText, Edit2, ChevronLeft, ChevronRight, BarChart2, Download, Pin, X, Pencil, Check, Copy, Shuffle, Target } from 'lucide-react'
 import { sendMessageStream, uploadDocument, type ChatHistoryMessage, createChatSession, getChatSessions, getChatMessages, deleteChatSession, getProfile, updateProfile as updateUserProfile, updateChatSessionTitle, getUserDocuments, deleteUserDocument, addSessionMessages } from '@/lib/api'
 import { MarkdownMessage } from '@/components/markdown-message'
 import { UserMenu } from '@/components/user-menu'
@@ -2070,6 +2070,12 @@ export default function ChatPage() {
                   <p className="text-sm font-semibold text-foreground">Income- Rs.{profile.income}</p>
                   <p className="text-xs text-muted-foreground">Age- {profile.age} years</p>
                 </div>
+                <Link href="/goal-planner">
+                  <Button variant="outline" size="sm" className="gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:text-primary">
+                    <Target className="w-4 h-4" />
+                    Goal Planner
+                  </Button>
+                </Link>
                 <Button
                   variant="outline"
                   size="sm"

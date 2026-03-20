@@ -1,49 +1,116 @@
-# backend/inflation_engine.py
-import math
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+import google.generativeai as genai
+import json
 
-# 2026 Sectoral Benchmarks for India
-CURRENT_INFLATION_DATA = {
-    "education": {"rate": 10.5, "insight": "Sticky tuition fees."},
-    "medical": {"rate": 14.0, "insight": "High tertiary care costs."},
-    "real_estate": {"rate": 8.2, "insight": "Urban demand surge."},
-    "lifestyle": {"rate": 6.0, "insight": "Auto/Travel trends."},
-    "general": {"rate": 4.5, "insight": "Baseline retail inflation."}
+# Optional: Create a router if you are using multiple files
+router = APIRouter()
+
+# 1. Define the Input Data Model
+class GoalRequest(BaseModel):
+    goal_type: str
+    amount: float
+    years: int
+    risk_profile: str = "Moderate" # Added from our new frontend!
+
+# 2. Hardcoded logic for Indian Inflation & Expected Returns
+INFLATION_RATES = {
+    "Education": 0.105,   # 10.5%
+    "Medical": 0.14,      # 14%
+    "Lifestyle": 0.06,    # 6%
+    "Home": 0.06,         # 6%
+    "Retirement": 0.06,   # 6%
+    "General": 0.045      # 4.5%
 }
 
-def analyze_investment_plan(goal_type: str, current_amount: float, years: int):
-    sector = goal_type.lower()
-    # Default to general if sector not found
-    data = CURRENT_INFLATION_DATA.get(sector, CURRENT_INFLATION_DATA["general"])
-    
-    # 1. Calculate Future Value (Inflation Adjusted)
-    inflation_rate = data["rate"] / 100
-    future_value = current_amount * ((1 + inflation_rate) ** years)
-    
-    # 2. Calculate Monthly SIP required
-    # Assuming 12% annual return (Standard for Indian Mutual Funds)
-    annual_return = 0.12
-    monthly_return = annual_return / 12
-    months = years * 12
-    
-    if months > 0:
-        # SIP Formula: FV = P × [((1 + r)^n - 1) / r] × (1 + r)
-        # Rearranged for P: P = FV / [((1 + r)^n - 1) / r]
-        sip_amount = future_value / (((math.pow(1 + monthly_return, months) - 1) / monthly_return))
-    else:
-        sip_amount = future_value
+EXPECTED_RETURNS = {
+    "Conservative": 0.07, # 7% (FDs, PPF, Bonds)
+    "Moderate": 0.10,     # 10% (Balanced Advantage, Index Funds)
+    "Aggressive": 0.12    # 12% (Small/Mid Cap, Flexi Cap)
+}
 
-    # 3. AI Asset Recommendation
-    if data["rate"] > 10:
-        advice = "High inflation sector. Recommend 80% Equity allocation."
-    else:
-        advice = "Moderate inflation. A 60/40 Equity-Debt split is sufficient."
+def calculate_sip(fv: float, years: int, annual_return: float) -> float:
+    """Standard SIP calculation formula"""
+    if annual_return == 0 or years == 0:
+        return fv / max((years * 12), 1)
     
-    return {
-        "sector": sector,
-        "ai_inflation_rate": data["rate"],
-        "future_value": round(future_value, 2),
-        "sip_amount": round(sip_amount, 2),
-        "insight": data["insight"],
-        "advice": advice,
-        "allocation": {"Equity": "80%", "Debt": "20%"} if data["rate"] > 10 else {"Equity": "60%", "Debt": "40%"}
-    }
+    monthly_rate = annual_return / 12
+    months = years * 12
+    # Standard formula for SIP (investing at the beginning of the month)
+    sip = (fv * monthly_rate) / (((1 + monthly_rate)**months) - 1)
+    sip = sip / (1 + monthly_rate)
+    return round(sip, 0)
+
+# 3. The Main API Endpoint
+@router.post("/api/finance/check-goal")
+async def check_goal(request: GoalRequest):
+    try:
+        # Step 1: Do the exact math in Python
+        inflation_rate = INFLATION_RATES.get(request.goal_type, 0.06)
+        expected_return = EXPECTED_RETURNS.get(request.risk_profile, 0.10)
+        
+        # Calculate Future Value: FV = PV * (1 + r)^t
+        future_value = round(request.amount * ((1 + inflation_rate) ** request.years), 0)
+        
+        # Calculate Required Monthly SIP
+        sip_amount = calculate_sip(future_value, request.years, expected_return)
+
+        # Step 2: Use AI to generate the Strategy & Allocation
+        # (Assuming you are using Gemini or an OpenAI-compatible client)
+        model = genai.GenerativeModel('gemini-1.5-pro') # Or your configured model
+        
+        prompt = f"""
+        You are a top-tier Indian Financial Advisor AI.
+        A user wants to save for {request.goal_type}.
+        Current cost: ₹{request.amount}
+        Time Horizon: {request.years} years
+        Risk Appetite: {request.risk_profile}
+
+        I have already calculated that they need a future corpus of ₹{future_value:,.0f} and their monthly SIP should be ₹{sip_amount:,.0f}.
+
+        Your job is to allocate this ₹{sip_amount:,.0f} monthly SIP across different asset classes and specific Indian investment schemes. 
+        You must return ONLY a valid JSON object matching the exact structure below, without markdown formatting or extra text.
+
+        {{
+          "advice": "A 2-3 sentence personalized explanation of your strategy.",
+          "allocation_chart": [
+             {{ "name": "Asset Class (e.g., Equity Mutual Funds)", "value": 70, "amount": <exact calculated amount> }},
+             {{ "name": "Asset Class (e.g., PPF & FDs)", "value": 30, "amount": <exact calculated amount> }}
+          ],
+          "specific_schemes": [
+             {{ "name": "Specific Indian Fund/Scheme 1", "category": "Equity/Debt/Safe", "amount": <exact calculated amount>, "reason": "Why this specific scheme?" }},
+             {{ "name": "Specific Indian Fund/Scheme 2", "category": "Equity/Debt/Safe", "amount": <exact calculated amount>, "reason": "Why this specific scheme?" }}
+          ]
+        }}
+
+        RULES:
+        1. The 'value' percentages in allocation_chart MUST sum to exactly 100.
+        2. The 'amount' values in allocation_chart MUST sum to exactly {sip_amount:.0f}.
+        3. The 'amount' values in specific_schemes MUST sum to exactly {sip_amount:.0f}.
+        4. Recommend authentic Indian schemes (e.g., PPF, SSY, Nifty 50 Index Funds, Liquid Funds, SCSS, etc.) based on the {request.years} year timeline and {request.risk_profile} risk.
+        """
+
+        # Call the LLM
+        response = model.generate_content(prompt)
+        
+        # Clean the response (sometimes LLMs wrap JSON in ```json blocks)
+        raw_json = response.text.strip().removeprefix('```json').removesuffix('```').strip()
+        
+        # Parse the JSON
+        ai_data = json.loads(raw_json)
+        
+        # Merge our perfectly calculated math with the AI's smart strategy
+        final_result = {
+            "future_value": future_value,
+            "sip_amount": sip_amount,
+            "advice": ai_data.get("advice", "Start saving today."),
+            "allocation_chart": ai_data.get("allocation_chart", []),
+            "specific_schemes": ai_data.get("specific_schemes", [])
+        }
+        
+        return final_result
+
+    except Exception as e:
+        print(f"Goal Planner Error: {str(e)}")
+        # Fallback response so the frontend doesn't crash if the AI fails
+        raise HTTPException(status_code=500, detail="Failed to generate AI plan")
