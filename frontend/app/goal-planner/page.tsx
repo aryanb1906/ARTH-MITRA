@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, BrainCircuit, TrendingUp, ShieldCheck, AlertCircle, Target, Wallet, PieChart as PieChartIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import RiskComparison from '@/components/RiskComparison';
 
 // Colors for the Pie Chart
 const COLORS = ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444'];
@@ -143,7 +144,7 @@ export default function GoalPlanner() {
             </Card>
         </div>
 
-        {/* RIGHT COLUMN: AI Results */}
+        {/* RIGHT COLUMN: AI Results OR Empty State */}
         <div className="lg:col-span-8">
             {aiResult ? (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -260,14 +261,28 @@ export default function GoalPlanner() {
                     </div>
                 </div>
 
+                {/* MOVED HERE: Risk Comparison shows at the bottom of the generated results */}
+                <div className="pt-4">
+                    <RiskComparison 
+                        specificSchemes={aiResult.specific_schemes}
+                        userRiskProfile={risk}
+                    />
+                </div>
+
             </div>
             ) : (
-            <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/60 bg-slate-50/50 rounded-2xl p-10 text-muted-foreground min-h-[500px]">
-                <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-6">
-                    <AlertCircle size={40} className="text-primary/40" />
+            <div className="space-y-8 h-full flex items-center justify-center min-h-[500px]">
+                {/* NEW CLEAN EMPTY STATE */}
+                <div className="flex flex-col items-center justify-center border-2 border-dashed border-border/60 bg-slate-50/50 rounded-2xl p-10 text-muted-foreground w-full">
+                    <div className="w-16 h-16 bg-primary/5 rounded-full flex items-center justify-center mb-6">
+                        <BrainCircuit size={32} className="text-primary/40" />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground mb-2">Ready to plan your future?</h3>
+                    <p className="text-center max-w-md text-sm leading-relaxed">
+                        Adjust your Goal Parameters on the left and click Generate. 
+                        Arth-Mitra will build a custom portfolio and provide a complete stress-test analysis of your crash risk.
+                    </p>
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">Ready to plan your future?</h3>
-                <p className="text-center max-w-md text-sm">Fill out your goal details on the left, set your risk profile, and our AI will generate a custom, inflation-adjusted investment roadmap for you.</p>
             </div>
             )}
         </div>

@@ -1,0 +1,551 @@
+# ARTH-MITRA RECOMMENDED INVESTMENT SCHEMES MASTER LIST
+# Verified March 2026 | Stress-Tested Drawdown Estimates
+# Trailing_5Y: 5-Year Rolling Average Return (CAGR Range)
+# Max_Risk: Estimated Drawdown based on Historical Market Crash Analysis
+# DISCLAIMER: Returns are historical rolling averages and may vary based on market cycles and timing.
+
+1. Scheme Name: SBI Magnum Gilt Fund
+Asset Class: Debt (Gilt)
+Trailing_5Y: 6.1% – 6.4%
+Max_Risk: -2% to -4%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: 100% sovereign backed. Zero credit risk. Stable returns but sensitive to RBI interest rate hikes. Ideal for capital protection with minor interest rate fluctuation.
+
+2. Scheme Name: HDFC Corporate Bond Fund
+Asset Class: Debt (Corporate)
+Trailing_5Y: 6.4% – 6.6%
+Max_Risk: -1% to -3% (typical), -5% (extreme)
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Invests in AA+ and AAA rated corporate bonds. Higher yield than Gilt funds but vulnerable during credit liquidity crises. Very high credit quality with low default risk.
+
+3. Scheme Name: Top Bank Fixed Deposit (FD) / Post Office RD
+Asset Class: Safe (Guaranteed)
+Trailing_5Y: 6.8% – 7.2%
+Max_Risk: 0.0%
+Source: RBI / AMFI (returns), No market risk
+Description: Non-market linked. Guaranteed return with absolute capital protection. Perfect for highly conservative investors who cannot tolerate any market drops whatsoever.
+
+4. Scheme Name: UTI Nifty 50 Index Fund
+Asset Class: Equity (Index)
+Trailing_5Y: 10% – 12%
+Max_Risk: -35% to -40%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Passively tracks India's top 50 companies. Historically dropped ~38% in March 2020 COVID crash. Core holding for market-linked growth over long horizons.
+
+5. Scheme Name: ICICI Prudential Balanced Advantage Fund
+Asset Class: Hybrid (Dynamic)
+Trailing_5Y: 11% – 13%
+Max_Risk: -14% to -18%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Dynamically shifts between stocks and bonds to cushion crashes. Still faces double-digit drawdown in severe market corrections despite active hedging.
+
+6. Scheme Name: Parag Parikh Flexi Cap Fund
+Asset Class: Equity (Flexi Cap)
+Trailing_5Y: 14% – 18%
+Max_Risk: -25% to -30%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Diversified across large, mid, small caps and US tech stocks. Risk is lower than pure small-caps but significant during global tech sell-offs. Consistently beats benchmark.
+
+7. Scheme Name: Nippon India Small Cap Fund
+Asset Class: Equity (Small Cap)
+Trailing_5Y: 18% – 22%
+Max_Risk: -48% to -55%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Extreme growth potential in emerging small businesses. Small-caps can and do lose over half their value in a major crash. Only for investors with 8+ year horizon.
+
+8. Scheme Name: Quant Mid Cap Fund
+Asset Class: Equity (Mid Cap)
+Trailing_5Y: 17% – 21%
+Max_Risk: -40% to -46%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: High momentum algorithm-driven mid-cap fund. High beta results in aggressive drawdowns during corrections. Massive upside potential balanced by deep fall risk.
+
+9. Scheme Name: Motilal Oswal Nasdaq 100 ETF
+Asset Class: Equity (International)
+Trailing_5Y: 14% – 18%
+Max_Risk: -44% to -50%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Exposure to top 100 global tech companies. Nasdaq has seen ~50% drops during tech bubble and interest rate spike events. Subject to currency and global market risks.
+
+10. Scheme Name: SBI Bluechip Fund
+Asset Class: Equity (Large Cap)
+Trailing_5Y: 10% – 13%
+Max_Risk: -33% to -38%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Invests in top 100 largest stable Indian companies. Even blue-chips fall ~35% in black-swan events. Steady long-term compounding with lower volatility than mid/small caps.
+
+11. Scheme Name: Mirae Asset Tax Saver Fund (ELSS)
+Asset Class: Equity (ELSS)
+Trailing_5Y: 13% – 16%
+Max_Risk: -35% to -40%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Tax deduction under Section 80C with 3-year lock-in. The lock-in makes losses appear on paper but the drop is real. Consistent growth track record across market cycles.
+
+12. Scheme Name: HDFC Mid-Cap Opportunities Fund
+Asset Class: Equity (Mid Cap)
+Trailing_5Y: 17% – 21%
+Max_Risk: -38% to -44%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: One of India's largest mid-cap funds. Major mid-cap volatility with risk balanced only by long-term growth horizon. Focuses on quality companies with high scalability.
+
+13. Scheme Name: Nippon India Liquid Fund
+Asset Class: Debt (Liquid)
+Trailing_5Y: 5.5% – 6.2%
+Max_Risk: -0.1% to -0.5%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Invests in instruments up to 91 days maturity. Virtually no drawdown risk. Stays stable even during market crisis. Acts as alternative to savings bank account.
+
+14. Scheme Name: Tata Digital India Fund
+Asset Class: Equity (Thematic - IT)
+Trailing_5Y: 16% – 21%
+Max_Risk: -42% to -48%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Exclusively invested in IT and tech services sector. Concentration risk is extreme — if IT sector falls the fund crashes harder than the broad index. High boom-bust cycles.
+
+15. Scheme Name: Public Provident Fund (PPF)
+Asset Class: Govt Debt
+Trailing_5Y: 7.0% – 7.2%
+Max_Risk: 0.0%
+Source: India Post / AMFI (returns), No market risk
+Description: 100% capital safety. Non-market linked. Backed by Government of India. 15-year lock-in with completely tax-free EEE status returns and Section 80C benefits.
+
+16. Scheme Name: SBI Gold Fund
+Asset Class: Commodity
+Trailing_5Y: 8% – 11%
+Max_Risk: -12% to -18%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Tracks gold prices via Gold ETFs. Gold can stay flat or drop during liquidity crunches and USD spikes. Excellent inflation hedge and safe haven during equity crashes.
+
+17. Scheme Name: Kotak Equity Arbitrage Fund
+Asset Class: Hybrid (Arbitrage)
+Trailing_5Y: 7.2% – 7.9%
+Max_Risk: -0.2% to -0.8%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Near-zero risk. Uses market price gaps between cash and futures markets to generate consistent return. Taxed as equity fund making it superior to FDs for high-bracket taxpayers.
+
+18. Scheme Name: Axis Bluechip Fund
+Asset Class: Equity (Large Cap)
+Trailing_5Y: 10% – 13%
+Max_Risk: -30% to -35%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Strategy-led recent underperformance but large-cap category crash risk remains high. Invests in top 100 established Indian companies with relatively lower equity volatility.
+
+19. Scheme Name: ICICI Prudential Bluechip Fund
+Asset Class: Equity (Large Cap)
+Trailing_5Y: 10% – 13%
+Max_Risk: -30% to -36%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Consistent dividend-paying large-cap stocks. Vulnerable to systematic market risk despite strong corporate governance focus. Steady long-term growth track record.
+
+20. Scheme Name: Kotak Emerging Equity Fund
+Asset Class: Equity (Mid Cap)
+Trailing_5Y: 17% – 21%
+Max_Risk: -38% to -44%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Mid-cap growth engines with deep V-shaped drawdown characteristics. Balances high growth potential with significant volatility over a 5 to 7-year horizon.
+
+21. Scheme Name: DSP Midcap Fund
+Asset Class: Equity (Mid Cap)
+Trailing_5Y: 17% – 21%
+Max_Risk: -37% to -43%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Targets mid-sized companies with strong scalability and growth prospects. High valuation risk in short-term corrections despite solid long-term business fundamentals.
+
+22. Scheme Name: SBI Small Cap Fund
+Asset Class: Equity (Small Cap)
+Trailing_5Y: 18% – 22%
+Max_Risk: -46% to -53%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: High alpha potential with massive potential loss bar. Small-cap liquidity can vanish in a crash causing over 50% drawdown. Massive long-term compounding potential.
+
+23. Scheme Name: Axis Small Cap Fund
+Asset Class: Equity (Small Cap)
+Trailing_5Y: 18% – 22%
+Max_Risk: -42% to -48%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Quality focus on robust balance sheets helps but small-cap liquidity can still vanish in a crash. Significant drawdown risk balanced by strong long-term return potential.
+
+24. Scheme Name: Kotak Flexicap Fund
+Asset Class: Equity (Flexi Cap)
+Trailing_5Y: 14% – 18%
+Max_Risk: -30% to -35%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Diversification reduces risk to index-plus levels. Fund manager shifts across large, mid, and small caps based on market conditions. Standard market-linked drawdown.
+
+25. Scheme Name: UTI Flexi Cap Fund
+Asset Class: Equity (Flexi Cap)
+Trailing_5Y: 14% – 18%
+Max_Risk: -30% to -35%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Core portfolio holding with standard market-linked drawdown. Highly diversified equity fund suitable for long-term wealth creation across all market capitalizations.
+
+26. Scheme Name: ICICI Prudential Technology Fund
+Asset Class: Equity (Sectoral - IT)
+Trailing_5Y: 10% – 14%
+Max_Risk: -44% to -50%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Extreme thematic concentration risk. Tech downturns are historically deep — fund crashes harder than the broader index during IT sector corrections and rate hike cycles.
+
+27. Scheme Name: SBI Healthcare Opportunities Fund
+Asset Class: Equity (Sectoral - Pharma)
+Trailing_5Y: 15% – 19%
+Max_Risk: -25% to -32%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: More defensive than IT sectoral funds. Invests in pharma, hospitals, and diagnostics. Still carries equity-grade crash risk despite defensive sector characteristics.
+
+28. Scheme Name: Axis Long Term Equity Fund (ELSS)
+Asset Class: Equity (ELSS)
+Trailing_5Y: 11% – 14%
+Max_Risk: -32% to -38%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Multi-cap approach with large-cap bias. 3-year lock-in does not stop market drops. Tax saving under Section 80C with standard equity drawdown risk in crashes.
+
+29. Scheme Name: DSP Tax Saver Fund (ELSS)
+Asset Class: Equity (ELSS)
+Trailing_5Y: 13% – 16%
+Max_Risk: -34% to -40%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Strong upside potential balanced by category-wide crash risk. ELSS offering ₹1.5 Lakh tax deduction with equity-linked long-term capital appreciation.
+
+30. Scheme Name: HDFC Liquid Fund
+Asset Class: Debt (Liquid)
+Trailing_5Y: 5.5% – 6.2%
+Max_Risk: -0.1% to -0.3%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Absolute liquidity with near-zero principal risk. Invests in instruments maturing up to 91 days. Extremely secure and highly liquid. Ideal for emergency fund parking.
+
+31. Scheme Name: SBI Savings Fund
+Asset Class: Debt (Ultra Short)
+Trailing_5Y: 5.8% – 6.4%
+Max_Risk: -0.2% to -0.6%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Very stable during interest rate cycles. Low duration debt with minimal volatility. Ideal for parking idle cash for 3 to 6 months instead of a regular savings account.
+
+32. Scheme Name: ICICI Prudential Corporate Bond Fund
+Asset Class: Debt (Corporate)
+Trailing_5Y: 6.2% – 6.6%
+Max_Risk: -1% to -3% (typical), -5% (extreme)
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: High-rated AA+ and AAA bonds. Vulnerable to credit spreads widening during liquidity crises. Steady predictable income with minimal default risk under normal conditions.
+
+33. Scheme Name: Kotak Gilt Fund
+Asset Class: Debt (Gilt)
+Trailing_5Y: 6.2% – 6.8%
+Max_Risk: -2% to -5%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Zero credit risk. Purely sensitive to long-term interest rate shifts. Invests exclusively in government securities with no default risk but moderate rate sensitivity.
+
+34. Scheme Name: HDFC Balanced Advantage Fund
+Asset Class: Hybrid (Dynamic)
+Trailing_5Y: 12% – 14%
+Max_Risk: -16% to -20%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Better drawdown protection than pure index but still carries equity exposure risk. Dynamically manages equity and debt mix to limit downside while capturing upside.
+
+35. Scheme Name: SBI Equity Hybrid Fund
+Asset Class: Hybrid (Aggressive)
+Trailing_5Y: 11% – 13%
+Max_Risk: -22% to -28%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Fixed 65-80% equity allocation ensures significant drawdown in crashes. Provides reliable mix of high growth and cushioning stability for moderate-to-aggressive investors.
+
+36. Scheme Name: Sovereign Gold Bonds (SGBs)
+Asset Class: Govt Commodity
+Trailing_5Y: 9% – 12%
+Max_Risk: -8% to -12%
+Source: RBI / AMFI (returns), Historical crash analysis (risk)
+Description: Guaranteed 2.5% annual interest but capital follows gold price volatility. Can drop during liquidity crunches and USD strengthening cycles. Sovereign guaranteed.
+
+37. Scheme Name: National Savings Certificate (NSC)
+Asset Class: Govt Debt
+Trailing_5Y: 7.5% – 7.9%
+Max_Risk: 0.0%
+Source: India Post / AMFI (returns), No market risk
+Description: 5-year lock-in with 100% capital guarantee. Backed by Indian Post Office. Qualifies for Section 80C tax benefits. Absolute capital safety with no market linkage.
+
+38. Scheme Name: Sukanya Samriddhi Yojana (SSY)
+Asset Class: Govt Debt
+Trailing_5Y: 8.0% – 8.4%
+Max_Risk: 0.0%
+Source: India Post / AMFI (returns), No market risk
+Description: Highest fixed yield among small savings schemes. Backed by sovereign guarantee. Dedicated for girl child with completely tax-free EEE returns. Absolute capital safety.
+
+39. Scheme Name: HDFC Index Fund Nifty 50 Plan
+Asset Class: Equity (Index)
+Trailing_5Y: 10% – 12%
+Max_Risk: -35% to -40%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Mirrors Nifty 50 index exactly including its biggest historical drops. Low-cost passive investing. Historically fell ~38% during COVID crash. Core long-term holding.
+
+40. Scheme Name: UTI Nifty Next 50 Index Fund
+Asset Class: Equity (Index)
+Trailing_5Y: 11% – 14%
+Max_Risk: -38% to -44%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Higher beta than Nifty 50. Expect deeper falls in corrections. Tracks 51st to 100th largest Indian companies. Higher growth potential capturing future large-caps.
+
+41. Scheme Name: Nippon India Index Fund Sensex Plan
+Asset Class: Equity (Index)
+Trailing_5Y: 10% – 12%
+Max_Risk: -35% to -40%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Consistent with large-cap historical drawdowns. Tracks 30 largest BSE companies. Core index risk with very low expense ratio. Extremely stable long-term holding.
+
+42. Scheme Name: Mirae Asset Large Cap Fund
+Asset Class: Equity (Large Cap)
+Trailing_5Y: 10% – 13%
+Max_Risk: -33% to -38%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Active management seeks to limit but cannot eliminate crash risk. Focuses on top 100 Indian companies. Strong track record of benchmark outperformance over long term.
+
+43. Scheme Name: Canara Robeco Bluechip Equity Fund
+Asset Class: Equity (Large Cap)
+Trailing_5Y: 11% – 14%
+Max_Risk: -31% to -36%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Conservative large-cap selection with strong fundamentals and corporate governance. Still equity-linked with standard large-cap drawdown risk during market crashes.
+
+44. Scheme Name: PGIM India Midcap Opportunities Fund
+Asset Class: Equity (Mid Cap)
+Trailing_5Y: 17% – 21%
+Max_Risk: -40% to -47%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Aggressive mid-cap play with steep valuation-led drawdown risk. Seeks high-growth mid-sized companies with strong cash flows. High alpha potential over 5+ year horizon.
+
+45. Scheme Name: HDFC Small Cap Fund
+Asset Class: Equity (Small Cap)
+Trailing_5Y: 18% – 22%
+Max_Risk: -48% to -56%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Under-researched stocks have higher mortality risk during crashes. Can lose over half value in major market events. Strong long-term compounding for 8+ year investors.
+
+46. Scheme Name: Tata Small Cap Fund
+Asset Class: Equity (Small Cap)
+Trailing_5Y: 18% – 22%
+Max_Risk: -48% to -54%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Strong economic moats protect long-term but short-term drops are massive. Highly consistent small-cap performer with one of the best 5-year track records in category.
+
+47. Scheme Name: SBI Contra Fund
+Asset Class: Equity (Contra)
+Trailing_5Y: 17% – 21%
+Max_Risk: -32% to -38%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Value bias provides a cushion but it is still 100% equity. Contrarian approach invests in beaten-down sectors with strong rebound potential. Lower drawdown than pure small-cap.
+
+48. Scheme Name: Invesco India Contra Fund
+Asset Class: Equity (Contra)
+Trailing_5Y: 14% – 18%
+Max_Risk: -30% to -36%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Contrarian approach leads to different drawdown timings but same scale as category. Focuses on undervalued companies with temporary headwinds and strong fundamentals.
+
+49. Scheme Name: Bandhan Sterling Value Fund
+Asset Class: Equity (Value)
+Trailing_5Y: 16% – 20%
+Max_Risk: -30% to -37%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Low P/E stocks historically fall less than growth stocks in crashes. Strict value-investing philosophy picking stocks below intrinsic value. Good risk-adjusted returns.
+
+50. Scheme Name: ICICI Prudential Value Discovery Fund
+Asset Class: Equity (Value)
+Trailing_5Y: 17% – 21%
+Max_Risk: -26% to -32%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Renowned for value cushion during major market panics. One of India's oldest value funds with strong downside protection by holding deeply undervalued assets.
+
+51. Scheme Name: Quant Active Fund
+Asset Class: Equity (Multi Cap)
+Trailing_5Y: 14% – 18%
+Max_Risk: -42% to -48%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: High churn and momentum lead to aggressive drawdown patterns. Proprietary algorithms rapidly switch between market caps based on momentum signals. High risk-reward.
+
+52. Scheme Name: Nippon India Multi Cap Fund
+Asset Class: Equity (Multi Cap)
+Trailing_5Y: 15% – 19%
+Max_Risk: -38% to -45%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Mandated 25% small-cap allocation ensures heavy fall in crashes. Maintains true cross-market diversification with minimum 25% each across large, mid, and small caps.
+
+53. Scheme Name: Parag Parikh Tax Saver Fund (ELSS)
+Asset Class: Equity (ELSS)
+Trailing_5Y: 14% – 18%
+Max_Risk: -27% to -33%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Value bias helps limit drawdown but lock-in does not prevent significant valuation drops. Follows same philosophy as flagship Flexi Cap with Section 80C tax benefits.
+
+54. Scheme Name: Canara Robeco Equity Tax Saver Fund (ELSS)
+Asset Class: Equity (ELSS)
+Trailing_5Y: 13% – 16%
+Max_Risk: -29% to -35%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Consistent performer with standard multi-cap drawdown risk. Large-cap biased tax-saving fund providing steady growth with lower volatility than most ELSS peers.
+
+55. Scheme Name: SBI Banking & Financial Services Fund
+Asset Class: Equity (Sectoral - Banking)
+Trailing_5Y: 12% – 16%
+Max_Risk: -44% to -52%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Highly cyclical sector. Financials crash hardest during systemic crises. Concentrated exposure to banks, NBFCs, and insurance. Proxy for India's credit growth cycle.
+
+56. Scheme Name: ICICI Prudential FMCG Fund
+Asset Class: Equity (Sectoral - FMCG)
+Trailing_5Y: 10% – 13%
+Max_Risk: -16% to -22%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Most defensive equity sector. Drawdown limited by staple consumer demand that persists even in recessions. Reliable performer during economic downturns.
+
+57. Scheme Name: Tata Infrastructure Fund
+Asset Class: Equity (Thematic - Infra)
+Trailing_5Y: 16% – 20%
+Max_Risk: -42% to -48%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Capex cycles are volatile. Infrastructure falls deeply in recessions and policy slowdowns. Capitalizes on government spending in construction, power, and engineering.
+
+58. Scheme Name: HDFC Defence Fund
+Asset Class: Equity (Thematic - Defence)
+Trailing_5Y: 14% – 18%
+Max_Risk: -40% to -48%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Recent rally-inflated returns are cycle-dependent and unsustainable. Niche thematic fund in aerospace and defence manufacturing tied to indigenous procurement. High crash risk.
+
+59. Scheme Name: Mirae Asset Artificial Intelligence & Global Equity ETF FoF
+Asset Class: Equity (International - Thematic)
+Trailing_5Y: 15% – 20%
+Max_Risk: -44% to -50%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Tech and AI themes carry concentrated bubble-burst drawdown risk. Exposure to global AI, robotics, and cloud leaders. High growth potential with significant crash depth.
+
+60. Scheme Name: PGIM India Global Equity Opportunities Fund
+Asset Class: Equity (International)
+Trailing_5Y: 12% – 16%
+Max_Risk: -40% to -47%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Global sell-offs are often deeper than Indian corrections for this category. Feeder fund across US, Europe, and emerging markets. Protects against INR depreciation.
+
+61. Scheme Name: SBI Arbitrage Opportunities Fund
+Asset Class: Hybrid (Arbitrage)
+Trailing_5Y: 7.2% – 7.9%
+Max_Risk: -0.2% to -1.2%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Near-zero market risk. Generates steady cash-equivalent returns by simultaneously buying in cash market and selling in futures market. Taxed as equity fund.
+
+62. Scheme Name: ICICI Prudential Multi-Asset Fund
+Asset Class: Hybrid (Multi Asset)
+Trailing_5Y: 13% – 16%
+Max_Risk: -10% to -14%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Rebalancing between gold and debt significantly cuts crash depth. Invests simultaneously in equity, debt, and gold. Remarkably smooth journey with diversified asset classes.
+
+63. Scheme Name: Quant Multi Asset Fund
+Asset Class: Hybrid (Multi Asset)
+Trailing_5Y: 15% – 19%
+Max_Risk: -22% to -28%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: More aggressive than multi-asset peers. Higher drawdown for higher alpha. Uses mathematical models to rotate capital between stocks, bonds, and commodities.
+
+64. Scheme Name: HDFC Equity Savings Fund
+Asset Class: Hybrid (Equity Savings)
+Trailing_5Y: 8% – 11%
+Max_Risk: -8% to -12%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Designed for stability with strictly capped equity exposure. Mix of equity growth, arbitrage tax efficiency, and debt stability. For risk-averse investors seeking above-FD returns.
+
+65. Scheme Name: Bandhan Liquid Fund
+Asset Class: Debt (Liquid)
+Trailing_5Y: 5.5% – 6.1%
+Max_Risk: -0.1% to -0.2%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Safest possible parking. Principal is extremely secure. Invests in short-term commercial papers and treasury bills. Perfect for emergency fund with instant liquidity.
+
+66. Scheme Name: ICICI Prudential Ultra Short Term Fund
+Asset Class: Debt (Ultra Short)
+Trailing_5Y: 6.0% – 6.6%
+Max_Risk: -0.2% to -0.6%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Very low market sensitivity with minor fluctuations only. Invests in instruments maturing 3 to 6 months. Slightly higher yield than liquid funds for near-future money.
+
+67. Scheme Name: HDFC Short Term Debt Fund
+Asset Class: Debt (Short Duration)
+Trailing_5Y: 6.3% – 6.9%
+Max_Risk: -1% to -3% (typical), -5% (extreme rate spike)
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Bond price volatility is low but exists during interest rate spikes. Invests in high-quality bonds maturing 1 to 3 years. Excellent FD alternative with better tax efficiency.
+
+68. Scheme Name: Axis Banking & PSU Debt Fund
+Asset Class: Debt (Banking & PSU)
+Trailing_5Y: 6.2% – 6.8%
+Max_Risk: -1% to -2.5%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: High-quality PSU bonds extremely resilient to credit shocks. Invests in bonds issued by Banks, PSUs, and Public Financial Institutions. Near-sovereign credit quality.
+
+69. Scheme Name: ICICI Prudential Dynamic Bond Fund
+Asset Class: Debt (Dynamic Bond)
+Trailing_5Y: 6.8% – 7.4%
+Max_Risk: -4% to -7%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: High interest rate risk. Can lose value if fund manager bets wrong on rate direction. Aggressively shifts between short and long-term bonds to maximize yield.
+
+70. Scheme Name: SBI Magnum Children's Benefit Fund
+Asset Class: Hybrid (Solution - Child)
+Trailing_5Y: 11% – 13%
+Max_Risk: -16% to -22%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Conservative equity-debt mix ensures moderate growth with defensive buffer. Lock-in until child turns 18. Ensures education corpus is protected as deadline approaches.
+
+71. Scheme Name: HDFC Retirement Savings Fund
+Asset Class: Hybrid (Solution - Retirement)
+Trailing_5Y: 12% – 15%
+Max_Risk: -14% to -18%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Disciplined long-term mix reduces extreme market swings. 5-year lock-in with dynamic equity-debt allocation. Ensures corpus growth with lower risk as retirement nears.
+
+72. Scheme Name: National Pension System (NPS) - Auto Choice
+Asset Class: Pension (Dynamic Hybrid)
+Trailing_5Y: 9% – 12%
+Max_Risk: -12% to -18%
+Source: PFRDA / AMFI (returns), Historical crash analysis (risk)
+Description: Equity component up to 75% causes significant drawdown in crashes. Auto choice reduces equity as user ages. Additional ₹50,000 tax deduction under 80CCD(1B).
+
+73. Scheme Name: Kisan Vikas Patra (KVP)
+Asset Class: Govt Debt
+Trailing_5Y: 7.3% – 7.6%
+Max_Risk: 0.0%
+Source: India Post / AMFI (returns), No market risk
+Description: Doubles money guaranteed in fixed tenure of 115 months. Post office saving certificate with zero market risk. Absolute capital safety with sovereign backing.
+
+74. Scheme Name: Senior Citizen Savings Scheme (SCSS)
+Asset Class: Govt Debt
+Trailing_5Y: 8.0% – 8.4%
+Max_Risk: 0.0%
+Source: India Post / AMFI (returns), No market risk
+Description: Exclusively for individuals over 60 years old. Sovereign backed with absolute capital protection. Guaranteed quarterly interest payouts to support retirement income.
+
+75. Scheme Name: RBI Floating Rate Savings Bonds
+Asset Class: Govt Debt
+Trailing_5Y: 7.8% – 8.2%
+Max_Risk: 0.0%
+Source: RBI / AMFI (returns), No market risk
+Description: Interest rate fluctuates every 6 months but capital is never at risk. Pegged at 0.35% above NSC rate. Sovereign guaranteed bonds protecting against rising rate environments.
+
+76. Scheme Name: Mahila Samman Savings Certificate
+Asset Class: Govt Debt
+Trailing_5Y: 7.3% – 7.6%
+Max_Risk: 0.0%
+Source: India Post / AMFI (returns), No market risk
+Description: Sovereign backed 2-year guaranteed safety exclusively for women and girls. Fixed interest rate for strict 2-year tenure. Absolute capital safety with government backing.
+
+77. Scheme Name: Post Office Time Deposit (POTD)
+Asset Class: Govt Debt
+Trailing_5Y: 7.3% – 7.6%
+Max_Risk: 0.0%
+Source: India Post / AMFI (returns), No market risk
+Description: Indian Post Office equivalent of a Bank Fixed Deposit with absolute capital preservation. Usually offers slightly higher interest than commercial banks with sovereign backing.
+
+78. Scheme Name: Edelweiss Nifty PSU Bond Plus SDL Index Fund
+Asset Class: Debt (Target Maturity)
+Trailing_5Y: 7.0% – 7.6%
+Max_Risk: -1% to -3%
+Source: AMFI (returns), Historical crash analysis (risk)
+Description: Locked-in maturity reduces risk but bond prices fluctuate daily. Passive debt fund holding State Development Loans and PSU bonds. Functions like an FD with mutual fund tax benefits.

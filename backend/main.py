@@ -222,8 +222,8 @@ import re
 @app.post("/api/finance/check-goal")
 async def check_goal_inflation(data: dict):
     """
-    Upgraded Endpoint: Calculates math in Python, then uses the existing 
-    Arth-Mitra bot LLM to generate specific Indian scheme allocations.
+    Upgraded Endpoint: Calculates math in Python, retrieves real funds via RAG, 
+    and uses the LLM to generate specific Indian scheme allocations.
     """
     goal_type = data.get("goal_type", "General")
     amount = float(data.get("amount", 0))
@@ -257,11 +257,51 @@ async def check_goal_inflation(data: dict):
         sip = sip / (1 + monthly_rate)
         sip_amount = round(sip, 0)
 
-    # 2. USE EXISTING AI BOT FOR STRATEGY
+    # 2. USE EXISTING AI BOT & RAG FOR STRATEGY
     bot = get_bot()
     if not bot._initialized:
         bot.initialize(auto_index=True)
 
+    # Search Vector DB for funds matching the user's constraints AND goal
+    search_query = f"Recommend funds for {goal_type} goal, {years} years horizon, {risk_profile} risk profile. "
+    
+    # Add goal-specific keywords
+    if goal_type.lower() == "retirement":
+        search_query += " retirement NPS SCSS pension "
+    elif goal_type.lower() == "education":
+        search_query += " children education SSY Sukanya "
+    
+    # Add time-specific keywords
+    if years >= 7:
+        search_query += " aggressive equity small cap mid cap flexi cap multi cap"
+    elif years >= 3:
+        search_query += " moderate hybrid balanced advantage large cap index"
+    else:
+        search_query += " conservative short term debt liquid safe FD gilt arbitrage"
+
+    try:
+        # Retrieve chunks specifically from the master text file
+        source_docs = bot._get_source_docs(search_query, source_filter="recommended_funds.txt")
+        retrieved_funds = "\n\n".join([doc.page_content for doc in source_docs])
+        
+        # FOOLPROOF FALLBACK: If Vector DB gets buried by giant PDFs, read the file directly!
+        if not retrieved_funds.strip():
+            print("⚠️ Vector DB missed the funds. Reading directly from file...")
+            file_path = os.path.join("documents", "recommended_funds.txt")
+            with open(file_path, "r", encoding="utf-8") as f:
+                retrieved_funds = f.read()
+                
+    except Exception as e:
+        print(f"RAG retrieval failed: {e}")
+        # Final safety net
+        try:
+            file_path = os.path.join("documents", "recommended_funds.txt")
+            with open(file_path, "r", encoding="utf-8") as f:
+                retrieved_funds = f.read()
+        except:
+            retrieved_funds = "No specific funds retrieved."
+
+    # 3. GENERATE DYNAMIC PROMPT
     prompt = f"""
     You are Arth-Mitra, the most advanced Indian Financial Advisor AI.
     Current Date: March 2026.
@@ -271,62 +311,117 @@ async def check_goal_inflation(data: dict):
     - Risk Profile: {risk_profile}
     - Monthly SIP Needed: ₹{sip_amount}
 
+    AVAILABLE APPROVED FUNDS (Retrieved from ARTH-MITRA Database):
+    {retrieved_funds}
+
     TASK:
-    Divide this ₹{sip_amount} into a high-performing 2026 Indian portfolio.
-    
+    Divide the ₹{sip_amount} monthly SIP into a high-performing Indian portfolio using ONLY the funds provided in the 'AVAILABLE APPROVED FUNDS' list above.
+
     STRATEGY RULES:
-    1. For 'Aggressive' + Long term: Recommend 'Nippon India Small Cap' or 'Quant Small Cap'.
-    2. For 'Moderate' + Any term: Recommend 'Parag Parikh Flexi Cap' or 'HDFC Flexi Cap'.
-    3. For 'Education': If years > 10, strongly suggest 'Sukanya Samriddhi Yojana (SSY)' (8.2% tax-free).
-    4. For 'Retirement': Suggest 'NPS Tier-1' for the extra 50k tax benefit.
-    5. For 'Conservative': Suggest 'SCSS' (8.2%) or 'RBI Floating Rate Bonds' (8.05%).
-    6. Ensure specific scheme names are used, not just categories.
+    1. GOAL ALIGNMENT: Pay close attention to the '{goal_type}' goal. Prioritize Solution-oriented funds (like Retirement, Children's, SSY) if applicable.
+    2. DIVERSIFY: Build a balanced portfolio of 2 to 4 different schemes from the list that fits a {years}-year timeline and a {risk_profile} investor.
+    3. NO HALLUCINATION: You must ONLY use funds from the text. 
+    4. EXACT NAMING: Extract ONLY the clean fund name. Do NOT include the list number (e.g. "1.") or the asset class in the name field.
+    5. MATH: Ensure the 'percentage' values across your specific_schemes sum up exactly to 100.
 
     Return ONLY a valid JSON:
     {{
-      "advice": "Short professional strategy summary.",
+      "advice": "Short professional strategy summary explaining why these specific funds suit the timeline and risk.",
       "allocation": [
-         {{ "name": "Asset Category", "value": percentage, "amount": rupees }}
+          {{ "name": "Asset Category (e.g., Equity, Debt)", "value": percentage_integer }}
       ],
       "specific_schemes": [
-         {{ "name": "Exact Fund/Scheme Name", "category": "Type", "amount": rupees, "reason": "Why this is best in 2026?" }}
+          {{ "name": "Exact Clean Scheme Name", "category": "Asset Class", "percentage": percentage_integer, "reason": "Why this fund?" }}
       ]
     }}
     """
 
     try:
-        # Call the existing LLM (Gemini/OpenRouter/Ollama) directly
         response = bot.llm.invoke([HumanMessage(content=prompt)])
         raw_text = response.content if hasattr(response, "content") else str(response)
-
-        # Clean JSON from potential markdown tags (```json ... ```)
+        
+        # Clean JSON safely (Using replace to prevent UI bugs)
         cleaned = raw_text.strip()
-        cleaned = re.sub(r'^```json\s*', '', cleaned)
-        cleaned = re.sub(r'```\s*$', '', cleaned)
+        cleaned = cleaned.replace("```json", "")
+        cleaned = cleaned.replace("```JSON", "")
+        cleaned = cleaned.replace("```", "")
 
         ai_data = json.loads(cleaned)
+
+        # --- EXACT RUPEE MATH IN PYTHON ---
+        allocation_with_amounts = []
+        for item in ai_data.get("allocation", []):
+            item["amount"] = round((item.get("value", 0) / 100) * sip_amount)
+            allocation_with_amounts.append(item)
+            
+        schemes_with_amounts = []
+        for scheme in ai_data.get("specific_schemes", []):
+            scheme["amount"] = round((scheme.get("percentage", 0) / 100) * sip_amount)
+            schemes_with_amounts.append(scheme)
+
+        # Read trailing5Y and maxRisk from recommended_funds.txt
+        def parse_midpoint(raw: str) -> float:
+            raw = raw.split("(")[0].strip()
+            raw = raw.replace("–", "to").replace("—", "to")
+            parts = raw.split("to")
+            vals = []
+            for p in parts:
+                p = p.strip().replace("%", "").replace("-", "").strip()
+                try:
+                    vals.append(float(p))
+                except:
+                    pass
+            return round(sum(vals) / len(vals) / 100, 4) if vals else 0.0
+
+        fund_data = {}
+        try:
+            file_path = os.path.join("documents", "recommended_funds.txt")
+            with open(file_path, "r", encoding="utf-8") as f:
+                current = {}
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("Scheme Name:"):
+                        current = {"name": line.replace("Scheme Name:", "").strip()}
+                    elif line.startswith("Trailing_5Y:"):
+                        current["trailing5Y"] = parse_midpoint(line.replace("Trailing_5Y:", "").strip())
+                    elif line.startswith("Max_Risk:"):
+                        current["maxRisk"] = parse_midpoint(line.replace("Max_Risk:", "").strip())
+                    elif line.startswith("Description:") and "name" in current:
+                        fund_data[current["name"]] = {
+                            "trailing5Y": current.get("trailing5Y", 0.10),
+                            "maxRisk": current.get("maxRisk", 0.20)
+                        }
+                        current = {}
+        except Exception as e:
+            print(f"Fund enrichment error: {e}")
+
+        for scheme in schemes_with_amounts:
+            info = fund_data.get(scheme["name"], {"trailing5Y": 0.10, "maxRisk": 0.20})
+            scheme["trailing5Y"] = info["trailing5Y"]
+            scheme["maxRisk"] = info["maxRisk"]
 
         return {
             "future_value": future_value,
             "sip_amount": sip_amount,
             "advice": ai_data.get("advice", "Start saving today."),
-            "allocation": ai_data.get("allocation", []),
-            "specific_schemes": ai_data.get("specific_schemes", [])
+            "allocation": allocation_with_amounts,
+            "specific_schemes": schemes_with_amounts
         }
+        
     except Exception as e:
         print(f"Goal Planner AI Error: {e}")
-        # Safe fallback so the UI never crashes
+        # Safe fallback using actual valid names from the 78-Fund list
         return {
             "future_value": future_value,
             "sip_amount": sip_amount,
             "advice": f"Based on your {years}-year horizon and {risk_profile} risk, a balanced approach is best.",
             "allocation": [
-                {"name": "Growth Assets", "value": 60, "amount": sip_amount * 0.6},
-                {"name": "Safe Assets", "value": 40, "amount": sip_amount * 0.4}
+                {"name": "Equity Growth", "value": 60, "amount": round(sip_amount * 0.6)},
+                {"name": "Debt Safety", "value": 40, "amount": round(sip_amount * 0.4)}
             ],
             "specific_schemes": [
-                {"name": "Flexi Cap Mutual Fund", "category": "Growth", "amount": sip_amount * 0.6, "reason": "Diversified growth over time."},
-                {"name": "Bank Recurring Deposit (RD)", "category": "Safe", "amount": sip_amount * 0.4, "reason": "Guaranteed capital protection."}
+                {"name": "UTI Nifty 50 Index Fund", "category": "Equity", "percentage": 60, "amount": round(sip_amount * 0.6), "reason": "Core market growth.", "trailing5Y": fund_data.get("UTI Nifty 50 Index Fund", {}).get("trailing5Y", 0.11), "maxRisk": fund_data.get("UTI Nifty 50 Index Fund", {}).get("maxRisk", 0.375)},
+                {"name": "Top Bank Fixed Deposit (FD) / Post Office RD", "category": "Safe", "percentage": 40, "amount": round(sip_amount * 0.4), "reason": "Capital protection.", "trailing5Y": fund_data.get("Top Bank Fixed Deposit (FD) / Post Office RD", {}).get("trailing5Y", 0.07), "maxRisk": fund_data.get("Top Bank Fixed Deposit (FD) / Post Office RD", {}).get("maxRisk", 0.0)}
             ]
         }
 
