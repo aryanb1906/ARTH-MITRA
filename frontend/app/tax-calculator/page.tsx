@@ -28,6 +28,7 @@ import {
 interface TaxResult {
     oldRegime: {
         taxableIncome: number
+        rebate: number
         tax: number
         cess: number
         totalTax: number
@@ -39,6 +40,7 @@ interface TaxResult {
     }
     newRegime: {
         taxableIncome: number
+        rebate: number
         tax: number
         cess: number
         totalTax: number
@@ -144,6 +146,31 @@ export default function TaxCalculatorPage() {
         return slabs[slabs.length - 1].rate
     }
 
+    const getRebate = (regime: 'old' | 'new', taxableIncome: number, calculatedTax: number): number => {
+        if (regime === 'old') {
+            // Section 87A rebate in old regime: up to 12,500 when taxable income is up to 5,00,000
+            if (taxableIncome <= 500000) {
+                return Math.min(calculatedTax, 12500)
+            }
+            return 0
+        }
+
+        // Section 87A rebate in new regime for FY 2025-26: up to 60,000 when taxable income is up to 12,00,000
+        const newRegimeRebateThreshold = 1200000
+        if (taxableIncome <= newRegimeRebateThreshold) {
+            return Math.min(calculatedTax, 60000)
+        }
+
+        // Marginal relief: tax above threshold should not exceed income above threshold
+        const excessIncome = taxableIncome - newRegimeRebateThreshold
+        const maxTaxAllowed = excessIncome
+        if (calculatedTax > maxTaxAllowed) {
+            return Math.min(calculatedTax, calculatedTax - maxTaxAllowed)
+        }
+
+        return 0
+    }
+
     const handleCalculate = () => {
         if (!grossIncome) {
             alert('Please enter gross income')
@@ -162,7 +189,9 @@ export default function TaxCalculatorPage() {
         // Old Regime Calculation
         const totalDeductionsOld = std + sec80c + sec80d + sec80e + sec80tta + hra + other
         const taxableIncomeOld = Math.max(0, gross - totalDeductionsOld)
-        const taxOld = calculateTax(taxableIncomeOld, getTaxSlabs('old', ageGroup))
+        const baseTaxOld = calculateTax(taxableIncomeOld, getTaxSlabs('old', ageGroup))
+        const rebateOld = getRebate('old', taxableIncomeOld, baseTaxOld)
+        const taxOld = Math.max(0, baseTaxOld - rebateOld)
         const cessOld = (taxOld * 4) / 100 // 4% cess
         const totalTaxOld = taxOld + cessOld
         const netIncomeOld = gross - totalTaxOld
@@ -174,7 +203,9 @@ export default function TaxCalculatorPage() {
         // New Regime Calculation
         const totalDeductionsNew = std // Only standard deduction in new regime
         const taxableIncomeNew = Math.max(0, gross - totalDeductionsNew)
-        const taxNew = calculateTax(taxableIncomeNew, getTaxSlabs('new', ageGroup))
+        const baseTaxNew = calculateTax(taxableIncomeNew, getTaxSlabs('new', ageGroup))
+        const rebateNew = getRebate('new', taxableIncomeNew, baseTaxNew)
+        const taxNew = Math.max(0, baseTaxNew - rebateNew)
         const cessNew = (taxNew * 4) / 100 // 4% cess
         const totalTaxNew = taxNew + cessNew
         const netIncomeNew = gross - totalTaxNew
@@ -190,6 +221,7 @@ export default function TaxCalculatorPage() {
         setTaxResult({
             oldRegime: {
                 taxableIncome: taxableIncomeOld,
+                rebate: rebateOld,
                 tax: taxOld,
                 cess: cessOld,
                 totalTax: totalTaxOld,
@@ -201,6 +233,7 @@ export default function TaxCalculatorPage() {
             },
             newRegime: {
                 taxableIncome: taxableIncomeNew,
+                rebate: rebateNew,
                 tax: taxNew,
                 cess: cessNew,
                 totalTax: totalTaxNew,
@@ -471,7 +504,7 @@ export default function TaxCalculatorPage() {
                                             <XAxis dataKey="name" />
                                             <YAxis />
                                             <Tooltip
-                                                formatter={(value) => formatCurrency(value)}
+                                                formatter={(value) => formatCurrency(Number(value))}
                                                 contentStyle={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd' }}
                                             />
                                             <Legend />
@@ -498,7 +531,7 @@ export default function TaxCalculatorPage() {
                                             <XAxis dataKey="name" />
                                             <YAxis />
                                             <Tooltip
-                                                formatter={(value) => `${value.toFixed(2)}%`}
+                                                formatter={(value) => `${Number(value).toFixed(2)}%`}
                                                 contentStyle={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd' }}
                                             />
                                             <Legend />
@@ -532,7 +565,7 @@ export default function TaxCalculatorPage() {
                                                 <Cell fill="#f97316" />
                                                 <Cell fill="#fca5a5" />
                                             </Pie>
-                                            <Tooltip formatter={(value) => formatCurrency(value)} />
+                                            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </Card>
@@ -558,7 +591,7 @@ export default function TaxCalculatorPage() {
                                                 <Cell fill="#10b981" />
                                                 <Cell fill="#86efac" />
                                             </Pie>
-                                            <Tooltip formatter={(value) => formatCurrency(value)} />
+                                            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </Card>
@@ -608,6 +641,13 @@ export default function TaxCalculatorPage() {
                                                 <p className="font-semibold">{formatCurrency(taxResult.oldRegime.cess)}</p>
                                             </div>
                                         </div>
+
+                                        {taxResult.oldRegime.rebate > 0 && (
+                                            <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                                <p className="text-sm text-muted-foreground">Rebate (Sec 87A)</p>
+                                                <p className="font-semibold text-green-600">-{formatCurrency(taxResult.oldRegime.rebate)}</p>
+                                            </div>
+                                        )}
 
                                         <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount < 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
@@ -680,6 +720,13 @@ export default function TaxCalculatorPage() {
                                             </div>
                                         </div>
 
+                                        {taxResult.newRegime.rebate > 0 && (
+                                            <div className={`flex justify-between items-center pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
+                                                <p className="text-sm text-muted-foreground">Rebate (Sec 87A)</p>
+                                                <p className="font-semibold text-green-600">-{formatCurrency(taxResult.newRegime.rebate)}</p>
+                                            </div>
+                                        )}
+
                                         <div className={`grid grid-cols-2 gap-4 pb-4 border-b ${taxResult.savings.amount > 0 ? 'border-green-200' : 'border-yellow-200'}`}>
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Effective Rate</p>
@@ -728,7 +775,7 @@ export default function TaxCalculatorPage() {
                                             <XAxis dataKey="name" />
                                             <YAxis />
                                             <Tooltip
-                                                formatter={(value) => formatCurrency(value)}
+                                                formatter={(value) => formatCurrency(Number(value))}
                                                 contentStyle={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd' }}
                                             />
                                             <Legend />
@@ -755,7 +802,7 @@ export default function TaxCalculatorPage() {
                                             <XAxis dataKey="name" />
                                             <YAxis />
                                             <Tooltip
-                                                formatter={(value) => `${value.toFixed(2)}%`}
+                                                formatter={(value) => `${Number(value).toFixed(2)}%`}
                                                 contentStyle={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd' }}
                                             />
                                             <Legend />
