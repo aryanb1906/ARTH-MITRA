@@ -2086,7 +2086,7 @@ export default function ChatPage() {
                   <p className="text-xs text-muted-foreground">Age- {profile.age} years</p>
                 </div>
                 <Link href="/goal-planner">
-                  <Button variant="outline" size="sm" className="gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:text-primary">
+                  <Button variant="outline" size="sm" className="gap-1 bg-black text-white border-black hover:bg-white hover:text-black hover:border-black">
                     <Target className="w-4 h-4" />
                     Goal Planner
                   </Button>

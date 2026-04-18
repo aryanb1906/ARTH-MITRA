@@ -289,6 +289,14 @@ const LANG_LABELS: Record<string, string> = {
 };
 
 export function VoiceAssistantBubble() {
+  const SHOW_PROACTIVE_HINTS = false;
+  const SHOW_OFFLINE_BANNER = false;
+  const SHOW_VOICE_PICKER_POPOVER = false;
+  const SHOW_LIVE_TRANSCRIPT_TOOLTIP = false;
+  const SHOW_SYSTEM_STATUS_TOOLTIP = false;
+  const SHOW_FOLLOW_UP_PILLS = false;
+  const SHOW_HIGHLIGHT_OVERLAY = false;
+
   const pathname = usePathname();
   const router = useRouter();
   const assistantCtx = useAssistantContext();
@@ -408,6 +416,7 @@ export function VoiceAssistantBubble() {
   // ── Proactive hints (show subtle toast after inactivity on specific pages) ──
   const proactiveShownRef = useRef<Set<string>>(new Set());
   useEffect(() => {
+    if (!SHOW_PROACTIVE_HINTS) return;
     // Only show once per page per session
     if (proactiveShownRef.current.has(pathname)) return;
     const HINTS: Record<string, { delay: number; title: string; msg: string }> = {
@@ -425,7 +434,7 @@ export function VoiceAssistantBubble() {
       toast({ title: hint.title, description: hint.msg });
     }, hint.delay);
     return () => clearTimeout(timer);
-  }, [pathname, state, toast]);
+  }, [pathname, state, toast, SHOW_PROACTIVE_HINTS]);
 
   const handleTranscript = useCallback(
     async (text: string) => {
@@ -900,14 +909,14 @@ export function VoiceAssistantBubble() {
   return (
     <>
       {/* ── Offline indicator ── */}
-      {isOffline && (
+      {SHOW_OFFLINE_BANNER && isOffline && (
         <div className="fixed bottom-[8rem] right-6 z-[9999] px-3 py-1.5 rounded-full text-xs font-medium text-amber-200 bg-amber-900/80 backdrop-blur-sm border border-amber-700/50 animate-pulse">
           Offline — quick commands only
         </div>
       )}
 
       {/* ── Voice Picker Popover ── */}
-      {showVoicePicker && (
+      {SHOW_VOICE_PICKER_POPOVER && showVoicePicker && (
         <div className="fixed z-[10000] w-64 max-h-52 overflow-y-auto rounded-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 shadow-2xl p-2 animate-in fade-in slide-in-from-bottom-3 duration-200"
           style={{ bottom: "calc(3.25rem + 2.3rem - 1rem + 2.25rem)", right: "calc(3.25rem + 2.3rem - 1rem)" }}
         >
@@ -1100,7 +1109,7 @@ export function VoiceAssistantBubble() {
       </button>
 
       {/* ── Live transcript tooltip (shown while listening) ── */}
-      {liveTranscript && (state === "listening" || state === "processing") && (
+      {SHOW_LIVE_TRANSCRIPT_TOOLTIP && liveTranscript && (state === "listening" || state === "processing") && (
         <div
           className="fixed bottom-24 right-6 z-[9999] max-w-xs p-3 rounded-xl text-sm text-white bg-black/60 backdrop-blur-md border border-white/10 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200"
           role="status"
@@ -1118,7 +1127,7 @@ export function VoiceAssistantBubble() {
       )}
 
       {/* ── System-status tooltip (only for system/ephemeral actions) ── */}
-      {systemStatus && state === "speaking" && (
+      {SHOW_SYSTEM_STATUS_TOOLTIP && systemStatus && state === "speaking" && (
         <div className="fixed bottom-24 right-6 z-[9999] max-w-xs p-3 rounded-xl text-sm text-white bg-black/70 backdrop-blur-md border border-white/10 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="flex items-center gap-2">
             {isSpeaking ? (
@@ -1134,7 +1143,7 @@ export function VoiceAssistantBubble() {
       )}
 
       {/* ── Follow-up suggestion pills ── */}
-      {followUps.length > 0 && state === "idle" && (
+      {SHOW_FOLLOW_UP_PILLS && followUps.length > 0 && state === "idle" && (
         <div className="fixed bottom-36 right-6 z-[9999] flex flex-col gap-2 items-end animate-in fade-in slide-in-from-bottom-2 duration-300">
           <span className="text-[10px] text-blue-300 font-semibold uppercase tracking-wider mr-1">Follow up</span>
           {followUps.map((fu, i) => (
@@ -1164,12 +1173,14 @@ export function VoiceAssistantBubble() {
       )}
 
       {/* ── Highlight Overlay ── */}
-      <AssistantOverlay
-        targetId={highlightTarget}
-        visible={highlightVisible}
-        label={highlightLabel}
-        onDismiss={() => setHighlightVisible(false)}
-      />
+      {SHOW_HIGHLIGHT_OVERLAY && (
+        <AssistantOverlay
+          targetId={highlightTarget}
+          visible={highlightVisible}
+          label={highlightLabel}
+          onDismiss={() => setHighlightVisible(false)}
+        />
+      )}
 
     </>
   );
