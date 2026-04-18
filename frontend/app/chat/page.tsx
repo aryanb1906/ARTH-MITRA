@@ -2181,9 +2181,6 @@ export default function ChatPage() {
                   <Download className="w-4 h-4" />
                   PDF
                 </Button>
-                <Button variant="ghost" size="icon" className="hover:bg-primary/10">
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
                 <UserMenu />
               </div>
             </div>

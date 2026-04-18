@@ -4,7 +4,15 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cpu, Github, Mail, Phone, CheckCircle2, TrendingUp, BarChart3, Lightbulb, Award, Calculator } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { ArrowRight, FileText, Zap, Users, Globe, Shield, BookOpen, Database, Cpu, Github, Mail, Phone, CheckCircle2, TrendingUp, BarChart3, Lightbulb, Award, Calculator, Target } from 'lucide-react'
 import { useEffect, useState, type MouseEvent } from "react"
 import { AuthButtons, MobileAuthButtons } from '@/components/user-menu'
 import { useAuth } from '@/components/auth-provider'
@@ -15,6 +23,7 @@ export default function Page() {
   const router = useRouter()
   const { user } = useAuth()
   const [msg, setMsg] = useState("")
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false)
 
   const handleGetStarted = () => {
     if (!user) {
@@ -32,6 +41,10 @@ export default function Page() {
     }
 
     router.push('/profile-setup')
+  }
+
+  const handleFooterEmailClick = () => {
+    setIsEmailDialogOpen(true)
   }
 
   const handlePointerMove = (event: MouseEvent<HTMLElement>) => {
@@ -103,10 +116,6 @@ export default function Page() {
             <Button className="w-full md:w-auto transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25 active:scale-95" onClick={handleGetStarted}>
               Try Arth-Mitra
               <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button className="w-full md:w-auto bg-slate-600 border border-border hover:bg-slate-700 transition-all duration-200 hover:-translate-y-0.5 active:scale-95">
-              Watch Demo Video
-              {/*Remember to add a demo link*/}
             </Button>
           </div>
 
@@ -257,6 +266,19 @@ export default function Page() {
               desc: 'Compare old and new tax regimes instantly. Calculate your tax liability with deductions included',
               color: 'from-yellow-400/20 to-yellow-400/5',
               link: '/tax-calculator'
+            },
+            {
+              icon: Phone,
+              title: 'AI Voice Assistant',
+              desc: 'Ask financial questions by voice and get guided, spoken responses while you navigate the app.',
+              color: 'from-indigo-400/20 to-indigo-400/5'
+            },
+            {
+              icon: Target,
+              title: 'Goal Planner',
+              desc: 'Plan savings targets with smart projections and actionable recommendations for your future goals.',
+              color: 'from-orange-400/20 to-orange-400/5',
+              link: '/goal-planner'
             }
           ].map((feature, i) => (
             <div key={i}>
@@ -482,10 +504,10 @@ export default function Page() {
             <div>
               <h4 className="font-bold text-foreground mb-4 text-sm">Legal</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Disclaimer</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Security</a></li>
+                <li><Link href="/legal#privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/legal#terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms of Service</Link></li>
+                <li><Link href="/legal#disclaimer" className="text-sm text-muted-foreground hover:text-primary transition-colors">Disclaimer</Link></li>
+                <li><Link href="/legal#security" className="text-sm text-muted-foreground hover:text-primary transition-colors">Security</Link></li>
               </ul>
             </div>
 
@@ -493,7 +515,16 @@ export default function Page() {
               <h4 className="font-bold text-foreground mb-4 text-sm">Connect</h4>
               <ul className="space-y-2">
                 <li><a href="https://github.com/aryanb1906/ARTH-MITRA" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Github className="w-4 h-4" /> GitHub</a></li>
-                <li><a href="https://github.com/aryanb1906/ARTH-MITRA" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Mail className="w-4 h-4" /> Email</a></li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleFooterEmailClick}
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
@@ -508,6 +539,26 @@ export default function Page() {
           </div>
         </div>
       </footer>
+
+      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white/95 backdrop-blur-sm border border-border/40">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <Mail className="h-4 w-4 text-primary" />
+              Contact Email
+            </DialogTitle>
+            <DialogDescription>
+              You can reach Arth-Mitra support at the following email address.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <p className="text-sm font-semibold text-foreground break-all">arthmitraservices@gmail.com</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsEmailDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
