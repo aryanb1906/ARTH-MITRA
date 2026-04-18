@@ -15,14 +15,19 @@ const COLORS = ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444'];
 
 export default function GoalPlanner() {
   const router = useRouter();
-  const [target, setTarget] = useState<number>(100000);
-  const [years, setYears] = useState<number>(3);
+    const [target, setTarget] = useState<string>('100000');
+    const [years, setYears] = useState<string>('3');
   const [sector, setSector] = useState<string>("Lifestyle");
   const [risk, setRisk] = useState<string>("Moderate");
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
 
   const runAudit = async () => {
+        const parsedTarget = Number(target);
+        const parsedYears = Number(years);
+        const safeTarget = Number.isFinite(parsedTarget) && parsedTarget >= 0 ? parsedTarget : 0;
+        const safeYears = Number.isFinite(parsedYears) && parsedYears > 0 ? parsedYears : 1;
+
     setLoading(true);
     try {
       // Temporarily simulating the NEW backend response structure for testing the UI
@@ -30,14 +35,14 @@ export default function GoalPlanner() {
       const response = await fetch('http://localhost:8000/api/finance/check-goal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goal_type: sector, amount: target, years: years, risk_profile: risk }),
+                body: JSON.stringify({ goal_type: sector, amount: safeTarget, years: safeYears, risk_profile: risk }),
       });
       
       const data = await response.json();
       
       // If your backend isn't returning the new structure yet, we'll map the old one to the new one safely
       const formattedResult = {
-        future_value: data.future_value || target * 1.2,
+        future_value: data.future_value || safeTarget * 1.2,
         sip_amount: data.sip_amount || 3500,
         advice: data.advice || "Based on your timeline, a balanced approach is best.",
         // We expect the backend to send an array for the pie chart: [{name: "Equity", value: 60, amount: 2100}]
@@ -117,12 +122,12 @@ export default function GoalPlanner() {
                 
                 <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground">Today's Cost (₹)</label>
-                <Input type="number" value={target} onChange={(e) => setTarget(Number(e.target.value))} className="font-medium bg-white" />
+                <Input type="number" value={target} onChange={(e) => setTarget(e.target.value)} className="font-medium bg-white" />
                 </div>
                 
                 <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground">Time Horizon (Years)</label>
-                <Input type="number" value={years} onChange={(e) => setYears(Number(e.target.value))} className="bg-white" />
+                <Input type="number" value={years} onChange={(e) => setYears(e.target.value)} className="bg-white" />
                 </div>
 
                 <div className="space-y-2">

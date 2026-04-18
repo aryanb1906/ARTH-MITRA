@@ -190,7 +190,7 @@ export default function ChatPage() {
 
   // Initialize profile from localStorage
   const [profile, setProfile] = useState({
-    age: 0,
+    age: '' as number | '',
     gender: '',
     income: '',
     employmentStatus: '',
@@ -278,7 +278,7 @@ export default function ChatPage() {
 
         // Map database profile to local profile format
         const profileData = {
-          age: userProfile.age || 0,
+          age: userProfile.age ?? '',
           gender: userProfile.gender || '',
           income: userProfile.income || '',
           employmentStatus: userProfile.employmentStatus || '',
@@ -1373,15 +1373,30 @@ export default function ChatPage() {
         return
       }
 
+      const parsedAge = typeof editedProfile.age === 'string'
+        ? parseInt(editedProfile.age, 10)
+        : editedProfile.age
+
+      if (!Number.isFinite(parsedAge)) {
+        alert('Please enter a valid age.')
+        return
+      }
+
+      const profilePayload = {
+        ...editedProfile,
+        age: parsedAge,
+      }
+
       // Save to database
-      await updateUserProfile(userId, editedProfile)
+      await updateUserProfile(userId, profilePayload)
 
       // Update local state
-      setProfile(editedProfile)
+      setProfile(profilePayload)
+      setEditedProfile(profilePayload)
       setIsEditingProfile(false)
 
       // Save profile updates to localStorage for backward compatibility
-      localStorage.setItem('userProfile', JSON.stringify({ ...editedProfile, isProfileComplete: true }))
+      localStorage.setItem('userProfile', JSON.stringify({ ...profilePayload, isProfileComplete: true }))
     } catch (error) {
       console.error('Failed to save profile:', error)
       alert('Failed to save profile. Please try again.')
@@ -1636,7 +1651,7 @@ export default function ChatPage() {
                               type="number"
                               required
                               value={editedProfile.age}
-                              onChange={(e) => setEditedProfile({ ...editedProfile, age: parseInt(e.target.value) || 0 })}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, age: e.target.value })}
                             />
                           </div>
 

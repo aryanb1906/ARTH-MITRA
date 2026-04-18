@@ -167,10 +167,16 @@ export default function ProfileSetupPage() {
                 return
             }
 
+            const parsedAge = typeof profile.age === 'string' ? parseInt(profile.age, 10) : profile.age
+            if (!Number.isFinite(parsedAge)) {
+                alert('Please enter a valid age.')
+                return
+            }
+
             // Convert age to number
             const profileData = {
                 ...profile,
-                age: typeof profile.age === 'string' ? parseInt(profile.age) : profile.age,
+                age: parsedAge,
             }
 
             // Update profile in database
@@ -268,7 +274,7 @@ export default function ProfileSetupPage() {
                                         min="18"
                                         max="100"
                                         value={profile.age}
-                                        onChange={(e) => updateProfile('age', parseInt(e.target.value) || '')}
+                                        onChange={(e) => updateProfile('age', e.target.value)}
                                         className="border-border/40 focus:ring-2 focus:ring-primary/20"
                                         placeholder="Enter your age"
                                     />
