@@ -505,7 +505,7 @@ export default function ChatPage() {
     let unit = ''
     if (/₹|\binr\b/i.test(content)) unit = '₹'
     if (/\b(lpa|lakh|lakhs|lac|crore|cr)\b/i.test(content)) unit = '₹'
-    if (/%/.test(content)) unit = '%'
+    if (/%/.test(content) && !unit) unit = '%'
 
     if (dateHint) {
       return { data: rows, type: 'line', unit }
@@ -701,8 +701,38 @@ export default function ChatPage() {
     scrollToBottom('smooth')
   }
 
+  const deriveSessionTitleFromQuery = (query: string) => {
+    const cleaned = query
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    if (!cleaned) return 'New Chat'
+
+    const words = cleaned.split(' ').slice(0, 8)
+    const title = words.join(' ')
+    return title.length > 50 ? `${title.slice(0, 47)}...` : title
+  }
+
   const handleSendMessage = async () => {
     if (!input.trim()) return
+
+    let activeSessionId = sessionId
+    if (userId && (!activeSessionId || (chatSessions.length > 0 && !chatSessions.some(s => s.id === activeSessionId)))) {
+      try {
+        const newSession = await createChatSession(userId, 'New Chat')
+        activeSessionId = newSession.id
+        setSessionId(newSession.id)
+        localStorage.setItem(`currentSessionId_${userId}`, newSession.id)
+        setChatSessions(prev => {
+          if (prev.some(s => s.id === newSession.id)) return prev
+          return [newSession, ...prev]
+        })
+      } catch (sessionError) {
+        console.error('Failed to create/restore session before sending message:', sessionError)
+        alert('Failed to start a new chat session. Please try again.')
+        return
+      }
+    }
 
     // Check if this is the first user message (for session title auto-update)
     const isFirstUserMessage = messages.filter(m => m.type === 'user').length === 0
@@ -754,12 +784,17 @@ export default function ChatPage() {
       setLastUploadedFile('')
     }
 
+    let streamedResponse = ''
+    let streamedSources: string[] = []
+    const responseStartedAt = Date.now()
+
     try {
       await sendMessageStream(
         userInput,
         profile,
         history,
         (token) => {
+          streamedResponse += token
           setMessages(prev => prev.map(msg =>
             msg.id === aiMessageId
               ? { ...msg, content: msg.content + token }
@@ -767,6 +802,7 @@ export default function ChatPage() {
           ))
         },
         (sources) => {
+          streamedSources = sources
           setMessages(prev => prev.map(msg =>
             msg.id === aiMessageId
               ? { ...msg, sources }
@@ -792,9 +828,43 @@ export default function ChatPage() {
           ))
         },
         userId || undefined,
-        sessionId || undefined,
+        activeSessionId || undefined,
         activeDocFilter
       )
+
+      if (userId && activeSessionId && streamedResponse.trim()) {
+        try {
+          await addSessionMessages(
+            activeSessionId,
+            userInput,
+            streamedResponse,
+            streamedSources,
+            (Date.now() - responseStartedAt) / 1000
+          )
+        } catch (persistError) {
+          console.error('Failed to persist streamed chat messages:', persistError)
+        }
+      }
+
+      if (isFirstUserMessage && userId && activeSessionId) {
+        const currentSession = chatSessions.find(s => s.id === activeSessionId)
+        const currentTitle = (currentSession?.title || '').trim()
+        const shouldAutoRename = !currentTitle || currentTitle === 'New Chat'
+
+        if (shouldAutoRename) {
+          const generatedTitle = deriveSessionTitleFromQuery(userInput)
+          if (generatedTitle !== 'New Chat') {
+            try {
+              await updateChatSessionTitle(activeSessionId, generatedTitle)
+              setChatSessions(prev => prev.map(s =>
+                s.id === activeSessionId ? { ...s, title: generatedTitle } : s
+              ))
+            } catch (renameError) {
+              console.error('Failed to auto-rename session title:', renameError)
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Chat error:', error)
       setMessages(prev => prev.map(msg =>
@@ -805,7 +875,7 @@ export default function ChatPage() {
     } finally {
       setIsLoading(false)
       setStreamingMessageId(null)
-      // Reload sessions if this was the first message (title auto-updated by backend)
+      // Reload sessions after first message to keep sidebar state in sync.
       if (isFirstUserMessage && userId) {
         loadChatSessions(userId)
       }
