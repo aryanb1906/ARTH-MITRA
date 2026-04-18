@@ -2086,7 +2086,7 @@ export default function ChatPage() {
                   <p className="text-xs text-muted-foreground">Age- {profile.age} years</p>
                 </div>
                 <Link href="/goal-planner">
-                  <Button variant="outline" size="sm" className="gap-1 bg-black text-white border-black hover:bg-white hover:text-black hover:border-black">
+                  <Button variant="outline" size="sm" className="gap-1 hover:bg-orange-500 hover:text-white hover:border-orange-500">
                     <Target className="w-4 h-4" />
                     Goal Planner
                   </Button>
@@ -2094,7 +2094,7 @@ export default function ChatPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1"
+                  className="gap-1 hover:bg-[#f97316] hover:text-white hover:border-[#f97316]"
                   onClick={exportChatAsHtml}
                   title="Export chat as HTML"
                 >
@@ -2104,7 +2104,7 @@ export default function ChatPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1"
+                  className="gap-1 hover:bg-[#f97316] hover:text-white hover:border-[#f97316]"
                   onClick={exportChatAsPdf}
                   title="Export chat as PDF"
                 >
