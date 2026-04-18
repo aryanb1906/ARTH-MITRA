@@ -15,6 +15,24 @@ from database import get_db, init_db
 from sqlalchemy.orm import Session
 import crud
 
+
+def _env_flag(name: str, default: str = "false") -> bool:
+    return os.getenv(name, default).strip().lower() == "true"
+
+
+def _auto_index_documents_enabled() -> bool:
+    return _env_flag("AUTO_INDEX_DOCUMENTS", "false")
+
+
+def _ensure_bot_initialized():
+    bot = get_bot()
+    if not bot._initialized:
+        auto_index = _auto_index_documents_enabled()
+        print(f"🔄 Initializing bot (auto_index={auto_index})...")
+        bot.initialize(auto_index=auto_index)
+        print("✅ Bot initialized successfully")
+    return bot
+
 # Pydantic models for request/response
 class UserProfile(BaseModel):
     age: Optional[int] = None
@@ -169,29 +187,46 @@ async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
     
-    gemini_key = os.getenv("GEMINI_API_KEY")
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    allow_offline_llm = os.getenv("ALLOW_OFFLINE_LLM", "false").lower() == "true"
     
     if gemini_key:
         print("✅ Gemini API key found")
     elif openrouter_key:
         print("✅ OpenRouter API key found")
+    elif allow_offline_llm:
+        print("⚠️ No cloud API key configured; ALLOW_OFFLINE_LLM=true, using local Ollama fallback")
     else:
-        print("⚠️ WARNING: No API key configured in .env")
-        print("Backend will now run on local llm (Ollama) without external API access")
+        raise RuntimeError(
+            "No cloud LLM key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY) or OPENROUTER_API_KEY. "
+            "If you want local Ollama fallback, set ALLOW_OFFLINE_LLM=true."
+        )
     
-    # Eagerly initialize bot and warm up for fast first request
-    print("🔄 Initializing bot and warming up...")
-    try:
-        bot = get_bot()
-        bot.initialize(auto_index=True)
-        print("✅ Bot initialized successfully")
-        
-        from warmup import full_warmup
-        full_warmup(bot)
-    except Exception as e:
-        print(f"⚠️ Startup warmup failed: {e}")
-        print("  Bot will initialize on first request instead")
+    preload_bot_on_startup = _env_flag("PRELOAD_BOT_ON_STARTUP", "false")
+    warmup_on_startup = _env_flag("WARMUP_ON_STARTUP", "false")
+
+    if not preload_bot_on_startup:
+        print("⏭️ Skipping bot preload on startup (PRELOAD_BOT_ON_STARTUP=false)")
+    else:
+        auto_index = _auto_index_documents_enabled()
+        print(f"🔄 Preloading bot on startup (auto_index={auto_index})...")
+        try:
+            bot = get_bot()
+            bot.initialize(auto_index=auto_index)
+            print("✅ Bot initialized successfully")
+
+            if warmup_on_startup:
+                from warmup import full_warmup
+                full_warmup(bot)
+            else:
+                print("⏭️ Startup warmup disabled (WARMUP_ON_STARTUP=false)")
+        except RuntimeError as e:
+            print(f"❌ Startup blocked: {e}")
+            raise
+        except Exception as e:
+            print(f"⚠️ Startup preload failed: {e}")
+            print("  Bot will initialize on first request instead")
     
     yield
     # Shutdown: cleanup if needed
@@ -258,9 +293,7 @@ async def check_goal_inflation(data: dict):
         sip_amount = round(sip, 0)
 
     # 2. USE EXISTING AI BOT & RAG FOR STRATEGY
-    bot = get_bot()
-    if not bot._initialized:
-        bot.initialize(auto_index=True)
+    bot = _ensure_bot_initialized()
 
     # Search Vector DB for funds matching the user's constraints AND goal
     search_query = f"Recommend funds for {goal_type} goal, {years} years horizon, {risk_profile} risk profile. "
@@ -442,12 +475,7 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
     start_time = time.time()
     
     try:
-        bot = get_bot()
-        if not bot._initialized:
-            # Initialize bot on first request
-            print("🔄 Initializing bot for first time...")
-            bot.initialize(auto_index=True)
-            print("✅ Bot initialized successfully")
+        bot = _ensure_bot_initialized()
         
         # Convert profile to dict if provided
         profile_dict = request.profile.dict() if request.profile else None
@@ -517,11 +545,7 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
 def chat_stream(request: ChatRequest):
     """Stream chat response tokens via SSE"""
     try:
-        bot = get_bot()
-        if not bot._initialized:
-            print("🔄 Initializing bot for first time...")
-            bot.initialize(auto_index=True)
-            print("✅ Bot initialized successfully")
+        bot = _ensure_bot_initialized()
 
         profile_dict = request.profile.dict() if request.profile else None
         history = [msg.dict() for msg in request.history] if request.history else None
@@ -1254,9 +1278,7 @@ def voice_assistant(request: AssistantRequest, db: Session = Depends(get_db)):
     start_time = time.time()
 
     try:
-        bot = get_bot()
-        if not bot._initialized:
-            bot.initialize(auto_index=True)
+        bot = _ensure_bot_initialized()
 
         ctx = request.context or AssistantContext()
 

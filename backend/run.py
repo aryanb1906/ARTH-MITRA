@@ -23,12 +23,13 @@ except Exception as e:
 try:
     import uvicorn
     print("✅ Imported uvicorn")
+    port = int(os.getenv("PORT", "8000"))
     
-    print("\n⚡ Starting FastAPI server on http://0.0.0.0:8000")
+    print(f"\n⚡ Starting FastAPI server on http://0.0.0.0:{port}")
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=False,
         log_level="info"
     )

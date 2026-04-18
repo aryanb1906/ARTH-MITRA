@@ -31,6 +31,27 @@ import time
 
 load_dotenv()
 
+
+def _env_flag(name: str, default: str = "false") -> bool:
+    return os.getenv(name, default).strip().lower() == "true"
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+        return value if value > 0 else default
+    except Exception:
+        return default
+
+
+IS_RENDER = _env_flag("RENDER", "false")
+LOW_MEMORY_MODE = _env_flag("LOW_MEMORY_MODE", "true" if IS_RENDER else "false")
+ENABLE_RAG = _env_flag("ENABLE_RAG", "false" if LOW_MEMORY_MODE else "true")
+DEBUG_TOKEN_LOG = _env_flag("DEBUG_TOKEN_LOG", "false")
+
 # Configuration
 CHROMA_PERSIST_DIR = "./chroma_db"
 DOCS_DIR = "./documents"  # Pre-loaded knowledge base documents
@@ -38,14 +59,16 @@ UPLOADS_DIR = "./uploads"  # Runtime uploaded documents
 GOLD_DATA_PATH = os.path.join(DOCS_DIR, "gold_data.csv")
 
 # Performance optimization settings
-CACHE_MEMORY_MAX = 200  # Max L1 (in-memory LRU) entries
+CACHE_MEMORY_MAX = _env_int("CACHE_MEMORY_MAX", 80 if LOW_MEMORY_MODE else 200)  # Max L1 (in-memory LRU) entries
 CACHE_TTL_HOURS = 24    # Cache expiry in hours (applies to both L1 and L2 disk)
-OPTIMIZED_CHUNK_SIZE = 1000  # Larger chunks preserve more document context
-OPTIMIZED_CHUNK_OVERLAP = 150  # Better continuity across chunk boundaries
-OPTIMIZED_RETRIEVAL_K = 10  # Retrieve more candidates for document-grounded answers
+OPTIMIZED_CHUNK_SIZE = _env_int("RAG_CHUNK_SIZE", 700 if LOW_MEMORY_MODE else 1000)  # Larger chunks preserve more document context
+OPTIMIZED_CHUNK_OVERLAP = _env_int("RAG_CHUNK_OVERLAP", 100 if LOW_MEMORY_MODE else 150)  # Better continuity across chunk boundaries
+OPTIMIZED_RETRIEVAL_K = _env_int("RAG_RETRIEVAL_K", 4 if LOW_MEMORY_MODE else 10)  # Retrieve more candidates for document-grounded answers
+
+RAG_WORKERS = _env_int("RAG_WORKERS", 1 if LOW_MEMORY_MODE else 3)
 
 # Thread pool for parallel retrieval operations
-_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="rag")
+_executor = ThreadPoolExecutor(max_workers=max(1, RAG_WORKERS), thread_name_prefix="rag")
 
 # Month name mappings for date parsing
 MONTH_NAMES = {
@@ -433,11 +456,18 @@ class ArthMitraBot:
     def initialize(self, auto_index: bool = True):
         """Initialize the bot with embeddings and LLM"""
         # Check for Gemini API key first (preferred), then OpenRouter
-        gemini_key = os.getenv("GEMINI_API_KEY")
+        gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        allow_offline_llm = os.getenv("ALLOW_OFFLINE_LLM", "false").lower() == "true"
         
-        if not gemini_key and not openrouter_key:
-            print("⚠️ No API keys found - will use offline LLM now")
+        if not gemini_key and not openrouter_key and not allow_offline_llm:
+            raise RuntimeError(
+                "No cloud LLM key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY) or OPENROUTER_API_KEY. "
+                "If you want local Ollama fallback, set ALLOW_OFFLINE_LLM=true."
+            )
+
+        if LOW_MEMORY_MODE:
+            print("🪶 LOW_MEMORY_MODE enabled (memory-optimized runtime settings active)")
         
         # Initialize ONNX-accelerated embeddings with built-in LRU cache
         # Falls back to standard HuggingFace if ONNX runtime not available
@@ -474,6 +504,15 @@ class ArthMitraBot:
             base_url="http://localhost:11434",
             think=False,
             )
+
+        if not ENABLE_RAG:
+            print("⏭️ ENABLE_RAG=false: running in LLM-only mode (vector retrieval disabled)")
+            self.embeddings = None
+            self.vectorstore = None
+            self.rag_chain = None
+            self._retriever = None
+            self._initialized = True
+            return self
 
 
         # Load or create vector store
@@ -600,6 +639,9 @@ class ArthMitraBot:
 
     def _get_source_docs(self, query: str, source_filter: Optional[str] = None):
         """Retrieve documents, optionally constrained to a specific source file."""
+        if not self.vectorstore or not self._retriever:
+            return []
+
         if not source_filter:
             return self._retriever.invoke(query)
 
@@ -650,6 +692,12 @@ class ArthMitraBot:
         """Add documents to the knowledge base"""
         if not self._initialized:
             raise RuntimeError("Bot not initialized. Call initialize() first.")
+
+        if not self.vectorstore:
+            return {
+                "status": "error",
+                "message": "RAG is disabled (ENABLE_RAG=false). Enable RAG to index documents."
+            }
         
         # Determine loader based on file type
         file_ext = os.path.splitext(file_path)[1].lower()
@@ -698,7 +746,7 @@ class ArthMitraBot:
         """Remove all chunks for a given filename from the vector store."""
         try:
             if not self.vectorstore:
-                return {"status": "error", "message": "Vector store not initialised"}
+                return {"status": "error", "message": "Vector store not initialised (RAG may be disabled)"}
 
             collection = self.vectorstore._collection
             # Find all chunk IDs whose source matches the filename
@@ -726,8 +774,8 @@ class ArthMitraBot:
 
     def _extract_text(self, content) -> str:
         """Extract text from LLM response content"""
-        # Debug: log what we receive
-        print(f"[DEBUG] _extract_text received: type={type(content)}, value={repr(content)[:100]}")
+        if DEBUG_TOKEN_LOG:
+            print(f"[DEBUG] _extract_text received: type={type(content)}, value={repr(content)[:100]}")
         
         if content is None:
             return ""
