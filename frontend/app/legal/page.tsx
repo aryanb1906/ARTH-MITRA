@@ -157,7 +157,7 @@ export default function LegalPage() {
               <h4 className="font-bold text-foreground mb-4 text-sm">Connect</h4>
               <ul className="space-y-2">
                 <li><a href="https://github.com/aryanb1906/ARTH-MITRA" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Github className="w-4 h-4" /> GitHub</a></li>
-                <li><a href="https://github.com/aryanb1906/ARTH-MITRA" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Mail className="w-4 h-4" /> Email</a></li>
+                <li><a href="mailto:arthmitraservices@gmail.com" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"><Mail className="w-4 h-4" /> Email</a></li>
               </ul>
             </div>
           </div>
