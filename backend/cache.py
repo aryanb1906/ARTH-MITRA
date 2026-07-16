@@ -33,6 +33,7 @@ class MultiLayerCache:
         self._ttl = ttl_hours * 3600
         self._lock = threading.Lock()
         self._stats = {"l1_hits": 0, "l2_hits": 0, "misses": 0}
+        self._writes_since_sweep = 0
 
         os.makedirs(disk_dir, exist_ok=True)
 
@@ -102,6 +103,34 @@ class MultiLayerCache:
                 )
         except (OSError, TypeError):
             pass  # Skip disk caching for non-serialisable data
+            return
+
+        self._writes_since_sweep += 1
+        if self._writes_since_sweep >= 50:
+            self._writes_since_sweep = 0
+            self._sweep_expired_disk_entries()
+
+    def _sweep_expired_disk_entries(self):
+        """Evict expired L2 files that haven't been looked up recently, bounding disk growth."""
+        now = time.time()
+        try:
+            fnames = os.listdir(self._disk_dir)
+        except OSError:
+            return
+        for fname in fnames:
+            if not fname.endswith(".json"):
+                continue
+            path = os.path.join(self._disk_dir, fname)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    entry = json.load(fh)
+                if now - entry.get("ts", 0) >= self._ttl:
+                    os.remove(path)
+            except (json.JSONDecodeError, OSError, KeyError):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
 
     # ── Public API (drop-in compatible with old ResponseCache) ────
 

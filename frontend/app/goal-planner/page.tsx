@@ -9,6 +9,9 @@ import { ArrowLeft, BrainCircuit, TrendingUp, ShieldCheck, AlertCircle, Target, 
 import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import RiskComparison from '@/components/RiskComparison';
+import { calculateGoalSIP } from '@/lib/goal-engine';
+import { checkGoal } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 // Colors for the Pie Chart
 const COLORS = ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444'];
@@ -21,6 +24,7 @@ export default function GoalPlanner() {
   const [risk, setRisk] = useState<string>("Moderate");
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
+  const { toast } = useToast();
 
   const runAudit = async () => {
         const parsedTarget = Number(target);
@@ -30,36 +34,51 @@ export default function GoalPlanner() {
 
     setLoading(true);
     try {
-      // Temporarily simulating the NEW backend response structure for testing the UI
-      // In production, you will fetch this from your Python backend
-      const response = await fetch('http://localhost:8000/api/finance/check-goal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ goal_type: sector, amount: safeTarget, years: safeYears, risk_profile: risk }),
-      });
-      
-      const data = await response.json();
-      
-      // If your backend isn't returning the new structure yet, we'll map the old one to the new one safely
+      // Future value / SIP amount are computed locally - no backend round-trip needed for this math
+      const { futureValue, sipAmount } = calculateGoalSIP(safeTarget, safeYears, sector);
+
       const formattedResult = {
-        future_value: data.future_value || safeTarget * 1.2,
-        sip_amount: data.sip_amount || 3500,
-        advice: data.advice || "Based on your timeline, a balanced approach is best.",
-        // We expect the backend to send an array for the pie chart: [{name: "Equity", value: 60, amount: 2100}]
-        allocation: data.allocation_chart || [
-            { name: "Debt Funds", value: 70, amount: (data.sip_amount || 3500) * 0.7 },
-            { name: "Fixed Deposits", value: 30, amount: (data.sip_amount || 3500) * 0.3 }
+        future_value: futureValue,
+        sip_amount: sipAmount,
+        advice: "Based on your timeline, a balanced approach is best.",
+        allocation: [
+            { name: "Debt Funds", value: 70, amount: sipAmount * 0.7 },
+            { name: "Fixed Deposits", value: 30, amount: sipAmount * 0.3 }
         ],
-        // We expect specific schemes from the backend
-        specific_schemes: data.specific_schemes || [
-            { name: "High-Grade Corporate Bond Fund", category: "Debt", amount: (data.sip_amount || 3500) * 0.7, reason: "Stable returns for short-term goals." },
-            { name: "Top Bank 3-Year FD / RD", category: "Safe", amount: (data.sip_amount || 3500) * 0.3, reason: "Zero market risk, guaranteed capital protection." }
+        specific_schemes: [
+            { name: "High-Grade Corporate Bond Fund", category: "Debt", amount: sipAmount * 0.7, reason: "Stable returns for short-term goals." },
+            { name: "Top Bank 3-Year FD / RD", category: "Safe", amount: sipAmount * 0.3, reason: "Zero market risk, guaranteed capital protection." }
         ]
       };
-      
+
       setAiResult(formattedResult);
+
+      // Fetch the AI-generated narrative/allocation/scheme picks; the raw
+      // numbers above already render even if this call fails.
+      try {
+        const data = await checkGoal(sector, safeTarget, safeYears, risk);
+        setAiResult({
+          future_value: futureValue,
+          sip_amount: sipAmount,
+          advice: data.advice || formattedResult.advice,
+          allocation: data.allocation || formattedResult.allocation,
+          specific_schemes: data.specific_schemes || formattedResult.specific_schemes,
+        });
+      } catch (narrativeErr) {
+        console.error("Failed to fetch AI strategy narrative", narrativeErr);
+        toast({
+          title: "AI strategy unavailable",
+          description: "Showing default allocation - couldn't reach the strategy service. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (err) {
       console.error("Audit failed", err);
+      toast({
+        title: "Goal calculation failed",
+        description: "Something went wrong while generating your investment plan. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

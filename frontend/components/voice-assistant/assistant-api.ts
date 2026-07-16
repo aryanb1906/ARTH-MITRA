@@ -11,6 +11,16 @@ const assistantApi = axios.create({
   timeout: 30000, // 30 s – LLM cold-start + generation can be slow
 });
 
+assistantApi.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 /**
  * Send a message to the voice assistant backend.
  * Pass an optional AbortSignal to allow in-flight cancellation.

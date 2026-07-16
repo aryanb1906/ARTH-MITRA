@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.username || user.email,
       },
+      token,
     });
 
     response.headers.set('Set-Cookie', createAuthCookie(token));

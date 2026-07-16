@@ -9,6 +9,17 @@ const api = axios.create({
   },
 });
 
+// Attach the JWT (if present) so the backend can authorize protected endpoints
+api.interceptors.request.use(config => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Add response interceptor for better error handling
 api.interceptors.response.use(
   response => response,
@@ -486,6 +497,49 @@ export async function uploadDocument(file: File, userId?: string): Promise<Uploa
 
 export async function getStatus(): Promise<StatusResponse> {
   const { data } = await api.get<StatusResponse>('/api/status');
+  return data;
+}
+
+// ===========================
+// Goal Planner APIs
+// ===========================
+
+export interface GoalAllocation {
+  name: string;
+  value: number;
+  amount: number;
+}
+
+export interface GoalScheme {
+  name: string;
+  category: string;
+  percentage?: number;
+  amount: number;
+  reason: string;
+  trailing5Y?: number;
+  maxRisk?: number;
+}
+
+export interface GoalCheckResponse {
+  future_value: number;
+  sip_amount: number;
+  advice: string;
+  allocation: GoalAllocation[];
+  specific_schemes: GoalScheme[];
+}
+
+export async function checkGoal(
+  goalType: string,
+  amount: number,
+  years: number,
+  riskProfile: string
+): Promise<GoalCheckResponse> {
+  const { data } = await api.post<GoalCheckResponse>('/api/finance/check-goal', {
+    goal_type: goalType,
+    amount,
+    years,
+    risk_profile: riskProfile,
+  });
   return data;
 }
 

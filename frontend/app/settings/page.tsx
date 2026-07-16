@@ -23,10 +23,12 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { useAssistantContext } from '@/components/voice-assistant/assistant-context-provider'
+import { useToast } from '@/hooks/use-toast'
 
 export default function SettingsPage() {
     const router = useRouter()
     const { user, logout } = useAuth()
+    const { toast } = useToast()
     const [isLoading, setIsLoading] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
@@ -60,17 +62,17 @@ export default function SettingsPage() {
         e.preventDefault()
 
         if (!settings.currentPassword || !settings.newPassword || !settings.confirmPassword) {
-            alert('All password fields are required')
+            toast({ title: 'Missing fields', description: 'All password fields are required', variant: 'destructive' })
             return
         }
 
         if (settings.newPassword !== settings.confirmPassword) {
-            alert('New passwords do not match')
+            toast({ title: 'Passwords do not match', description: 'New passwords do not match', variant: 'destructive' })
             return
         }
 
         if (settings.newPassword.length < 6) {
-            alert('Password must be at least 6 characters')
+            toast({ title: 'Password too short', description: 'Password must be at least 6 characters', variant: 'destructive' })
             return
         }
 
@@ -88,7 +90,7 @@ export default function SettingsPage() {
 
             if (!response.ok) {
                 const data = await response.json()
-                alert(data.error || 'Failed to change password')
+                toast({ title: 'Error', description: data.error || 'Failed to change password', variant: 'destructive' })
                 return
             }
 
@@ -103,7 +105,7 @@ export default function SettingsPage() {
             setTimeout(() => setSuccessMessage(''), 3000)
         } catch (error) {
             console.error('Password change error:', error)
-            alert('Failed to change password. Please try again.')
+            toast({ title: 'Error', description: 'Failed to change password. Please try again.', variant: 'destructive' })
         } finally {
             setIsSaving(false)
         }
@@ -122,7 +124,7 @@ export default function SettingsPage() {
             })
 
             if (!response.ok) {
-                alert('Failed to delete account')
+                toast({ title: 'Error', description: 'Failed to delete account', variant: 'destructive' })
                 return
             }
 
@@ -130,7 +132,7 @@ export default function SettingsPage() {
             router.push('/')
         } catch (error) {
             console.error('Delete account error:', error)
-            alert('Failed to delete account. Please try again.')
+            toast({ title: 'Error', description: 'Failed to delete account. Please try again.', variant: 'destructive' })
         } finally {
             setIsLoading(false)
         }

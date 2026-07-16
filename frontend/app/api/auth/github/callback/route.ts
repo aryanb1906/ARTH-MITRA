@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signToken, createAuthCookie } from '@/lib/auth';
+import crypto from 'crypto';
+
+// HMAC-derived OAuth password: provider user IDs are publicly discoverable,
+// so deriving the password from a server-only secret (rather than the raw ID)
+// prevents anyone from computing it and logging in as that user.
+const OAUTH_PASSWORD_SECRET = process.env.OAUTH_PASSWORD_SECRET!;
+function deriveOAuthPassword(provider: string, providerId: string): string {
+  return crypto.createHmac('sha256', OAUTH_PASSWORD_SECRET).update(`${provider}:${providerId}`).digest('hex');
+}
+
+const CLEAR_OAUTH_STATE_COOKIE = `oauth_state=; HttpOnly; Path=/; Max-Age=0`;
 
 interface GitHubTokenResponse {
   access_token: string;
@@ -26,17 +37,31 @@ export async function GET(req: NextRequest) {
   try {
     const code = req.nextUrl.searchParams.get('code');
     const error = req.nextUrl.searchParams.get('error');
+    const state = req.nextUrl.searchParams.get('state');
+    const storedState = req.cookies.get('oauth_state')?.value;
+
+    if (!state || !storedState || state !== storedState) {
+      const mismatchResponse = NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL}/login?error=oauth_state_mismatch`
+      );
+      mismatchResponse.headers.set('Set-Cookie', CLEAR_OAUTH_STATE_COOKIE);
+      return mismatchResponse;
+    }
 
     if (error) {
-      return NextResponse.redirect(
+      const errResponse = NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_APP_URL}/login?error=oauth_cancelled`
       );
+      errResponse.headers.set('Set-Cookie', CLEAR_OAUTH_STATE_COOKIE);
+      return errResponse;
     }
 
     if (!code) {
-      return NextResponse.redirect(
+      const noCodeResponse = NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_APP_URL}/login?error=no_code`
       );
+      noCodeResponse.headers.set('Set-Cookie', CLEAR_OAUTH_STATE_COOKIE);
+      return noCodeResponse;
     }
 
     // Exchange code for token
@@ -115,7 +140,7 @@ export async function GET(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email,
-        password: `github_oauth_${githubUser.id}`, // Special password for OAuth users
+        password: deriveOAuthPassword('github', String(githubUser.id)),
       }),
     });
 
@@ -136,7 +161,7 @@ export async function GET(req: NextRequest) {
         body: JSON.stringify({
           email: email,
           username: uniqueUsername,
-          password: `github_oauth_${githubUser.id}`, // Special password for OAuth users
+          password: deriveOAuthPassword('github', String(githubUser.id)),
         }),
       });
 
@@ -187,18 +212,19 @@ export async function GET(req: NextRequest) {
     // Create redirect response with auth cookie
     const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}${redirectPath}`);
     if (redirectPath === '/profile-setup') {
-      // Pass OAuth data only if going to profile-setup
       redirectUrl.searchParams.set('oauth_success', 'true');
-      redirectUrl.searchParams.set('user_data', JSON.stringify(user));
     }
 
     const response = NextResponse.redirect(redirectUrl.toString());
-    response.headers.set('Set-Cookie', createAuthCookie(token));
+    response.headers.append('Set-Cookie', createAuthCookie(token));
+    response.headers.append('Set-Cookie', CLEAR_OAUTH_STATE_COOKIE);
     return response;
   } catch (error) {
     console.error('GitHub OAuth error:', error);
-    return NextResponse.redirect(
+    const failResponse = NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/login?error=oauth_failed`
     );
+    failResponse.headers.set('Set-Cookie', CLEAR_OAUTH_STATE_COOKIE);
+    return failResponse;
   }
 }

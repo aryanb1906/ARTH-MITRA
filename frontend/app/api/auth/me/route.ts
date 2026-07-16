@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, getTokenFromCookies } from '@/lib/auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -28,6 +28,8 @@ export async function GET() {
 
     const profileData = await profileRes.json();
 
+    const token = await getTokenFromCookies();
+
     return NextResponse.json({
       user: {
         id: payload.userId,
@@ -35,6 +37,7 @@ export async function GET() {
         name: payload.name,
         provider: payload.provider || 'credentials',
       },
+      token,
     });
   } catch (error) {
     console.error('Get user error:', error);

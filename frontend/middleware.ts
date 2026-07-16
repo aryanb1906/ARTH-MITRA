@@ -16,14 +16,24 @@ const publicRoutes = ['/profile-setup'];
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = req.cookies.get('auth-token')?.value;
+  const demoSession = req.cookies.get('demo-session')?.value;
 
-  // Check for demo bypass
+  // Check for demo bypass via URL token (first hit only) - strip it from the
+  // URL and hand out a short-lived cookie so the raw token doesn't have to
+  // stay in the address bar/history/logs for every subsequent navigation.
   const demoParam = req.nextUrl.searchParams.get('demo');
   if (DEMO_TOKEN && demoParam === DEMO_TOKEN) {
-    return NextResponse.next();
+    const cleanUrl = req.nextUrl.clone();
+    cleanUrl.searchParams.delete('demo');
+    const response = NextResponse.redirect(cleanUrl);
+    response.headers.set(
+      'Set-Cookie',
+      `demo-session=${DEMO_TOKEN}; HttpOnly; Path=/; Max-Age=3600; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
+    );
+    return response;
   }
 
-  const isAuthenticated = !!token;
+  const isAuthenticated = !!token || (!!DEMO_TOKEN && demoSession === DEMO_TOKEN);
 
   // Protect routes
   const isProtectedRoute = protectedRoutes.some((route) =>

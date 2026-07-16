@@ -72,6 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(data.user);
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+      }
       router.refresh();
       return {};
     } catch {
@@ -98,6 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(data.user);
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+      }
       router.refresh();
       return {};
     } catch {
@@ -108,11 +114,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      console.error('Logout failed');
+    } finally {
+      const keysToRemove = ['userId', 'user', 'userProfile', 'userEmail', 'userName', 'authToken'];
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+      // chatHistory_* and currentSessionId_* are stored per-user in localStorage
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith('chatHistory_') || key.startsWith('currentSessionId_'))
+        .forEach((key) => localStorage.removeItem(key));
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith('chatHistory_')) {
+          sessionStorage.removeItem(key);
+        }
+      }
       setUser(null);
       router.push('/');
       router.refresh();
-    } catch {
-      console.error('Logout failed');
     }
   };
 

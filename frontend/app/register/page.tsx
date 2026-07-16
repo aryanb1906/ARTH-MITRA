@@ -70,6 +70,9 @@ export default function RegisterPage() {
       // Store user info in localStorage
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('userId', user.id);
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+      }
 
       // Redirect to profile setup after successful registration
       router.push('/profile-setup');

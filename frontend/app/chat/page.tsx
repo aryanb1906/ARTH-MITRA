@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
+import { useToast } from '@/hooks/use-toast'
 import {
   Select,
   SelectContent,
@@ -150,6 +151,7 @@ const suggestedQueries = [
 export default function ChatPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { toast } = useToast()
 
   const buildWelcomeMessage = (): Message => ({
     id: '1',
@@ -250,6 +252,9 @@ export default function ChatPage() {
             localStorage.setItem('userId', data.user.id)
             localStorage.setItem('userEmail', data.user.email || '')
             localStorage.setItem('userName', data.user.name || '')
+            if (data.token) {
+              localStorage.setItem('authToken', data.token)
+            }
           }
         } catch (error) {
           console.error('Failed to restore user from session:', error)
@@ -277,7 +282,7 @@ export default function ChatPage() {
         }
 
         // Map database profile to local profile format
-        const profileData = {
+        const profileData: typeof profile = {
           age: userProfile.age ?? '',
           gender: userProfile.gender || '',
           income: userProfile.income || '',
@@ -607,6 +612,9 @@ export default function ChatPage() {
     if (isLoading) return
     const lastAiMessage = [...messages].reverse().find(msg => msg.type === 'ai' && msg.content.trim())
     if (!lastAiMessage) return
+    // Skip inference while this message is still being streamed token-by-token -
+    // only run the (regex-heavy) inference once the response is complete.
+    if (lastAiMessage.id === streamingMessageId) return
 
     const inferred = inferChartData(lastAiMessage.content)
     if (inferred.data.length === 0) return
@@ -628,7 +636,7 @@ export default function ChatPage() {
     setChartData(inferred.data)
     setChartType(inferred.type)
     setChartUnit(inferred.unit)
-  }, [messages, isLoading, chartMode])
+  }, [messages, isLoading, chartMode, streamingMessageId])
 
   useEffect(() => {
     if (chartMode !== 'sources') return
@@ -729,7 +737,7 @@ export default function ChatPage() {
         })
       } catch (sessionError) {
         console.error('Failed to create/restore session before sending message:', sessionError)
-        alert('Failed to start a new chat session. Please try again.')
+        toast({ title: 'Session error', description: 'Failed to start a new chat session. Please try again.', variant: 'destructive' })
         return
       }
     }
@@ -791,7 +799,7 @@ export default function ChatPage() {
     try {
       await sendMessageStream(
         userInput,
-        profile,
+        { ...profile, age: profile.age === '' ? undefined : profile.age },
         history,
         (token) => {
           streamedResponse += token
@@ -1328,7 +1336,7 @@ export default function ChatPage() {
       loadChatSessions(userId)
     } catch (error) {
       console.error('Failed to create new chat:', error)
-      alert('Failed to create new chat. Please try again.')
+      toast({ title: 'Error', description: 'Failed to create new chat. Please try again.', variant: 'destructive' })
     }
   }
 
@@ -1374,7 +1382,7 @@ export default function ChatPage() {
       setComparisonSortByMessage({})
     } catch (error) {
       console.error('Failed to load session:', error)
-      alert('Failed to load chat session. Please try again.')
+      toast({ title: 'Error', description: 'Failed to load chat session. Please try again.', variant: 'destructive' })
     }
   }
 
@@ -1409,7 +1417,7 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Failed to delete session:', error)
-      alert('Failed to delete chat. Please try again.')
+      toast({ title: 'Error', description: 'Failed to delete chat. Please try again.', variant: 'destructive' })
     }
   }
 
@@ -1432,7 +1440,7 @@ export default function ChatPage() {
       setEditingSessionTitle('')
     } catch (error) {
       console.error('Failed to update session title:', error)
-      alert('Failed to rename chat. Please try again.')
+      toast({ title: 'Error', description: 'Failed to rename chat. Please try again.', variant: 'destructive' })
     }
   }
 
@@ -1448,7 +1456,7 @@ export default function ChatPage() {
         : editedProfile.age
 
       if (!Number.isFinite(parsedAge)) {
-        alert('Please enter a valid age.')
+        toast({ title: 'Invalid age', description: 'Please enter a valid age.', variant: 'destructive' })
         return
       }
 
@@ -1469,7 +1477,7 @@ export default function ChatPage() {
       localStorage.setItem('userProfile', JSON.stringify({ ...profilePayload, isProfileComplete: true }))
     } catch (error) {
       console.error('Failed to save profile:', error)
-      alert('Failed to save profile. Please try again.')
+      toast({ title: 'Error', description: 'Failed to save profile. Please try again.', variant: 'destructive' })
     }
   }
 
@@ -1585,7 +1593,7 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Failed to delete document:', error)
-      alert('Failed to delete document. Please try again.')
+      toast({ title: 'Error', description: 'Failed to delete document. Please try again.', variant: 'destructive' })
     }
   }
 
@@ -1721,7 +1729,7 @@ export default function ChatPage() {
                               type="number"
                               required
                               value={editedProfile.age}
-                              onChange={(e) => setEditedProfile({ ...editedProfile, age: e.target.value })}
+                              onChange={(e) => setEditedProfile({ ...editedProfile, age: e.target.value === '' ? '' : Number(e.target.value) })}
                             />
                           </div>
 
@@ -1891,7 +1899,7 @@ export default function ChatPage() {
                 </Dialog>
               </div>
               <div className="space-y-2 text-xs text-muted-foreground">
-                <p><span className="font-medium text-foreground">Age:</span> {profile.age} {profile.age >= 60 && '👴'}</p>
+                <p><span className="font-medium text-foreground">Age:</span> {profile.age} {Number(profile.age) >= 60 && '👴'}</p>
                 <p><span className="font-medium text-foreground">Gender:</span> {profile.gender}</p>
                 <p><span className="font-medium text-foreground">Income:</span> {profile.income}</p>
                 <p><span className="font-medium text-foreground">Status:</span> {profile.employmentStatus}</p>

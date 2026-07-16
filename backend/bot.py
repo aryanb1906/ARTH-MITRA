@@ -4,7 +4,6 @@ Uses LangChain + OpenRouter + ChromaDB for document retrieval and response gener
 """
 
 import os
-import profile
 import re
 import glob
 import pandas as pd
@@ -467,6 +466,18 @@ class ArthMitraBot:
             )
         else:
             # Offline fallback LLM
+            ollama_reachable = False
+            try:
+                import urllib.request
+                urllib.request.urlopen("http://localhost:11434", timeout=2)
+                ollama_reachable = True
+            except Exception:
+                ollama_reachable = False
+
+            if not ollama_reachable:
+                print("❌ WARNING: No LLM backend available — no API keys set and Ollama is not reachable at http://localhost:11434")
+                print("   Chat requests will fail until GEMINI_API_KEY/OPENROUTER_API_KEY is set or Ollama is started")
+
             print("🟡 No API keys found — using offline LLM (gemma3:1b)")
             self.llm = ChatOllama(
             model="gemma3:1b",   # speeeed
@@ -701,12 +712,9 @@ class ArthMitraBot:
                 return {"status": "error", "message": "Vector store not initialised"}
 
             collection = self.vectorstore._collection
-            # Find all chunk IDs whose source matches the filename
-            results = collection.get(include=["metadatas"])
-            ids_to_delete = []
-            for doc_id, meta in zip(results["ids"], results["metadatas"]):
-                if meta and meta.get("source") == filename:
-                    ids_to_delete.append(doc_id)
+            # Filter server-side by source metadata instead of pulling the entire collection
+            results = collection.get(where={"source": filename}, include=["metadatas"])
+            ids_to_delete = list(results["ids"])
 
             if not ids_to_delete:
                 return {"status": "success", "message": f"No chunks found for {filename}", "removed": 0}
@@ -726,9 +734,6 @@ class ArthMitraBot:
 
     def _extract_text(self, content) -> str:
         """Extract text from LLM response content"""
-        # Debug: log what we receive
-        print(f"[DEBUG] _extract_text received: type={type(content)}, value={repr(content)[:100]}")
-        
         if content is None:
             return ""
         if isinstance(content, str):

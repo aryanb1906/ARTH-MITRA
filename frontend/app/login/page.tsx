@@ -61,6 +61,9 @@ function LoginForm() {
       // Store user info in localStorage
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('userId', user.id);
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+      }
 
       // Fetch full profile from backend to check completeness
       const fullProfile = await getProfile(user.id);

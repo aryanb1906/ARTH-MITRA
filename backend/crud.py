@@ -315,6 +315,11 @@ def get_user_saved_messages(db: Session, user_id: str) -> List[SavedMessage]:
         .all()
 
 
+def get_saved_message(db: Session, saved_id: str) -> Optional[SavedMessage]:
+    """Get a specific saved message"""
+    return db.query(SavedMessage).filter(SavedMessage.id == saved_id).first()
+
+
 def delete_saved_message(db: Session, saved_id: str) -> bool:
     """Delete a saved message"""
     saved = db.query(SavedMessage).filter(SavedMessage.id == saved_id).first()

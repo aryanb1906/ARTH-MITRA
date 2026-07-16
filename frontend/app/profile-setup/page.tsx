@@ -19,6 +19,7 @@ import { useAuth } from '@/components/auth-provider'
 import { updateProfile as updateUserProfile, getProfile } from '@/lib/api'
 import { Logo } from '@/components/logo'
 import { useAssistantContext } from '@/components/voice-assistant/assistant-context-provider'
+import { useToast } from '@/hooks/use-toast'
 
 interface UserProfile {
     age: number | ''
@@ -61,6 +62,7 @@ export default function ProfileSetupPage() {
     const [isSaving, setIsSaving] = useState(false)
     const [completedFields, setCompletedFields] = useState<string[]>([])
     const initializationDone = useRef(false)
+    const { toast } = useToast()
     const assistantCtx = useAssistantContext();
     useEffect(() => { assistantCtx.setCurrentPage("profile-setup"); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
@@ -68,22 +70,32 @@ export default function ProfileSetupPage() {
         if (initializationDone.current) return
         initializationDone.current = true
 
-        // Check for OAuth success redirect - just parse and store data
+        // Check for OAuth success redirect - fetch the authoritative user record
+        // from the server instead of trusting data embedded in the URL
         const urlParams = new URLSearchParams(window.location.search)
         const oauthSuccess = urlParams.get('oauth_success')
-        const userData = urlParams.get('user_data')
 
-        if (oauthSuccess === 'true' && userData) {
-            try {
-                const user = JSON.parse(userData)
-                localStorage.setItem('userId', user.id)
-                localStorage.setItem('userEmail', user.email)
-                localStorage.setItem('userName', user.username)
-                localStorage.removeItem('userProfile') // Clear old profile data
-                window.history.replaceState({}, '', '/profile-setup')
-            } catch (error) {
-                console.error('Failed to parse OAuth user data:', error)
+        if (oauthSuccess === 'true') {
+            const restoreOAuthUser = async () => {
+                try {
+                    const res = await fetch('/api/auth/me')
+                    const data = await res.json()
+                    if (data?.user?.id) {
+                        localStorage.setItem('userId', data.user.id)
+                        localStorage.setItem('userEmail', data.user.email || '')
+                        localStorage.setItem('userName', data.user.name || '')
+                        if (data.token) {
+                            localStorage.setItem('authToken', data.token)
+                        }
+                        localStorage.removeItem('userProfile') // Clear old profile data
+                    }
+                } catch (error) {
+                    console.error('Failed to restore OAuth user data:', error)
+                } finally {
+                    window.history.replaceState({}, '', '/profile-setup')
+                }
             }
+            void restoreOAuthUser()
         }
 
         // Load saved profile from localStorage if exists (for partial profiles)
@@ -117,6 +129,9 @@ export default function ProfileSetupPage() {
                     localStorage.setItem('userId', data.user.id)
                     localStorage.setItem('userEmail', data.user.email || '')
                     localStorage.setItem('userName', data.user.name || '')
+                    if (data.token) {
+                        localStorage.setItem('authToken', data.token)
+                    }
                 }
             } catch (error) {
                 console.error('Failed to restore user from session:', error)
@@ -135,7 +150,7 @@ export default function ProfileSetupPage() {
         })
 
         if (!allFieldsFilled) {
-            alert('Please fill all required fields (marked with *)')
+            toast({ title: 'Missing required fields', description: 'Please fill all required fields (marked with *)', variant: 'destructive' })
             return
         }
 
@@ -155,6 +170,9 @@ export default function ProfileSetupPage() {
                         localStorage.setItem('userId', data.user.id)
                         localStorage.setItem('userEmail', data.user.email || '')
                         localStorage.setItem('userName', data.user.name || '')
+                        if (data.token) {
+                            localStorage.setItem('authToken', data.token)
+                        }
                     }
                 } catch (error) {
                     console.error('Failed to restore user from session during save:', error)
@@ -162,14 +180,14 @@ export default function ProfileSetupPage() {
             }
 
             if (!userId) {
-                alert('User not found. Please login again.')
+                toast({ title: 'User not found', description: 'Please login again.', variant: 'destructive' })
                 router.push('/login')
                 return
             }
 
             const parsedAge = typeof profile.age === 'string' ? parseInt(profile.age, 10) : profile.age
             if (!Number.isFinite(parsedAge)) {
-                alert('Please enter a valid age.')
+                toast({ title: 'Invalid age', description: 'Please enter a valid age.', variant: 'destructive' })
                 return
             }
 
@@ -195,7 +213,7 @@ export default function ProfileSetupPage() {
             }, 500)
         } catch (error) {
             console.error('Failed to save profile:', error)
-            alert('Failed to save profile. Please try again.')
+            toast({ title: 'Save failed', description: 'Failed to save profile. Please try again.', variant: 'destructive' })
         } finally {
             setIsSaving(false)
         }

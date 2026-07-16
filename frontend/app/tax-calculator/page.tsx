@@ -327,10 +327,11 @@ export default function TaxCalculatorPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="ageGroup" className="block text-sm font-medium text-foreground mb-2">
                                     Age Group
                                 </label>
                                 <select
+                                    id="ageGroup"
                                     value={ageGroup}
                                     onChange={(e) => setAgeGroup(e.target.value as any)}
                                     className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -343,10 +344,11 @@ export default function TaxCalculatorPage() {
 
                             {/* Gross Income */}
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="grossIncome" className="block text-sm font-medium text-foreground mb-2">
                                     Gross Annual Income *
                                 </label>
                                 <input
+                                    id="grossIncome"
                                     type="number"
                                     value={grossIncome}
                                     onChange={(e) => setGrossIncome(e.target.value)}
@@ -357,10 +359,11 @@ export default function TaxCalculatorPage() {
 
                             {/* Standard Deduction */}
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="standardDeduction" className="block text-sm font-medium text-foreground mb-2">
                                     Standard Deduction
                                 </label>
                                 <input
+                                    id="standardDeduction"
                                     type="number"
                                     value={standardDeduction}
                                     onChange={(e) => setStandardDeduction(e.target.value)}
@@ -371,10 +374,11 @@ export default function TaxCalculatorPage() {
 
                             {/* Section 80C */}
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="section80C" className="block text-sm font-medium text-foreground mb-2">
                                     Section 80C (Insurance, PPF, etc.)
                                 </label>
                                 <input
+                                    id="section80C"
                                     type="number"
                                     value={section80C}
                                     onChange={(e) => setSection80C(e.target.value)}
@@ -385,10 +389,11 @@ export default function TaxCalculatorPage() {
 
                             {/* Section 80D */}
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="section80D" className="block text-sm font-medium text-foreground mb-2">
                                     Section 80D (Health Insurance)
                                 </label>
                                 <input
+                                    id="section80D"
                                     type="number"
                                     value={section80D}
                                     onChange={(e) => setSection80D(e.target.value)}
@@ -399,10 +404,11 @@ export default function TaxCalculatorPage() {
 
                             {/* Section 80E */}
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="section80E" className="block text-sm font-medium text-foreground mb-2">
                                     Section 80E (Education Loan Interest)
                                 </label>
                                 <input
+                                    id="section80E"
                                     type="number"
                                     value={section80E}
                                     onChange={(e) => setSection80E(e.target.value)}
@@ -413,10 +419,11 @@ export default function TaxCalculatorPage() {
 
                             {/* Section 80TTA */}
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="section80TTA" className="block text-sm font-medium text-foreground mb-2">
                                     Section 80TTA (Savings Account Interest)
                                 </label>
                                 <input
+                                    id="section80TTA"
                                     type="number"
                                     value={section80TTA}
                                     onChange={(e) => setSection80TTA(e.target.value)}
@@ -427,10 +434,11 @@ export default function TaxCalculatorPage() {
 
                             {/* HRA */}
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="hra" className="block text-sm font-medium text-foreground mb-2">
                                     House Rent Allowance (HRA)
                                 </label>
                                 <input
+                                    id="hra"
                                     type="number"
                                     value={HRA}
                                     onChange={(e) => setHRA(e.target.value)}
@@ -441,10 +449,11 @@ export default function TaxCalculatorPage() {
 
                             {/* Other Deductions */}
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-2">
+                                <label htmlFor="otherDeductions" className="block text-sm font-medium text-foreground mb-2">
                                     Other Deductions
                                 </label>
                                 <input
+                                    id="otherDeductions"
                                     type="number"
                                     value={otherDeductions}
                                     onChange={(e) => setOtherDeductions(e.target.value)}
@@ -741,9 +750,9 @@ export default function TaxCalculatorPage() {
                                         <div className="bg-white/50 p-4 rounded-lg space-y-3">
                                             <div className="flex justify-between font-bold text-lg">
                                                 <span>Total Tax Liability</span>
-                                                <span className={taxResult.savings.amount < 0 ? 'text-green-600' : 'text-yellow-600'}>{formatCurrency(taxResult.newRegime.totalTax)}</span>
+                                                <span className={taxResult.savings.amount > 0 ? 'text-green-600' : 'text-yellow-600'}>{formatCurrency(taxResult.newRegime.totalTax)}</span>
                                             </div>
-                                            <div className={`flex justify-between pt-3 border-t ${taxResult.savings.amount < 0 ? 'text-green-600 border-green-200' : 'text-yellow-600 border-yellow-200'}`}>
+                                            <div className={`flex justify-between pt-3 border-t ${taxResult.savings.amount > 0 ? 'text-green-600 border-green-200' : 'text-yellow-600 border-yellow-200'}`}>
                                                 <span>Net Income (After Tax)</span>
                                                 <span className="font-bold">{formatCurrency(taxResult.newRegime.netIncome)}</span>
                                             </div>
@@ -753,63 +762,6 @@ export default function TaxCalculatorPage() {
                                             </div>
                                         </div>
                                     </div>
-                                </Card>
-                            </div>
-
-                            {/* Charts Section - Below Comparison */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Tax Comparison Bar Chart */}
-                                <Card className="p-6 border border-border/40">
-                                    <h3 className="font-bold text-lg mb-4">📊 Total Tax Comparison</h3>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart
-                                            data={[
-                                                {
-                                                    name: 'Tax Liability',
-                                                    'Old Regime': taxResult.oldRegime.totalTax,
-                                                    'New Regime': taxResult.newRegime.totalTax,
-                                                },
-                                            ]}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" />
-                                            <YAxis />
-                                            <Tooltip
-                                                formatter={(value) => formatCurrency(Number(value))}
-                                                contentStyle={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd' }}
-                                            />
-                                            <Legend />
-                                            <Bar dataKey="Old Regime" fill="#f97316" />
-                                            <Bar dataKey="New Regime" fill="#10b981" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </Card>
-
-                                {/* Effective Tax Rate Comparison */}
-                                <Card className="p-6 border border-border/40">
-                                    <h3 className="font-bold text-lg mb-4">📈 Effective Tax Rate (%)</h3>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <ComposedChart
-                                            data={[
-                                                {
-                                                    name: 'Effective Rate',
-                                                    'Old Regime': taxResult.oldRegime.effectiveRate,
-                                                    'New Regime': taxResult.newRegime.effectiveRate,
-                                                },
-                                            ]}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" />
-                                            <YAxis />
-                                            <Tooltip
-                                                formatter={(value) => `${Number(value).toFixed(2)}%`}
-                                                contentStyle={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd' }}
-                                            />
-                                            <Legend />
-                                            <Bar dataKey="Old Regime" fill="#f97316" />
-                                            <Bar dataKey="New Regime" fill="#10b981" />
-                                        </ComposedChart>
-                                    </ResponsiveContainer>
                                 </Card>
                             </div>
 

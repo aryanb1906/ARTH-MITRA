@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Form, Header, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -6,14 +6,40 @@ from typing import Any, List, Optional
 import os
 import sys
 import shutil
+import asyncio
+from pathlib import Path
 from contextlib import asynccontextmanager
 import json
 import time
+import jwt as pyjwt
 
 from bot import initialize_bot, get_bot
 from database import get_db, init_db
 from sqlalchemy.orm import Session
 import crud
+
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+
+
+def get_current_user_id(authorization: str = Header(None)) -> str:
+    if not JWT_SECRET:
+        raise HTTPException(status_code=500, detail="JWT_SECRET not configured")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+    token = authorization[7:]
+    try:
+        payload = pyjwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except pyjwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user_id = payload.get("userId")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token missing userId")
+    return user_id
+
+
+def require_owner(path_user_id: str, current_user_id: str):
+    if path_user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
 
 # Pydantic models for request/response
 class UserProfile(BaseModel):
@@ -204,9 +230,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3100").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -337,7 +369,9 @@ async def check_goal_inflation(data: dict):
     """
 
     try:
-        response = bot.llm.invoke([HumanMessage(content=prompt)])
+        response = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: bot.llm.invoke([HumanMessage(content=prompt)])
+        )
         raw_text = response.content if hasattr(response, "content") else str(response)
         
         # Clean JSON safely (Using replace to prevent UI bugs)
@@ -437,10 +471,11 @@ def hello():
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-def chat(request: ChatRequest, db: Session = Depends(get_db)):
+def chat(request: ChatRequest, http_request: Request, db: Session = Depends(get_db)):
     """Chat with Arth-Mitra AI assistant"""
+    _chat_rate_check(request.userId or (http_request.client.host if http_request.client else "unknown"))
     start_time = time.time()
-    
+
     try:
         bot = get_bot()
         if not bot._initialized:
@@ -514,8 +549,9 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/api/chat/stream")
-def chat_stream(request: ChatRequest):
+def chat_stream(request: ChatRequest, http_request: Request):
     """Stream chat response tokens via SSE"""
+    _chat_rate_check(request.userId or (http_request.client.host if http_request.client else "unknown"))
     try:
         bot = get_bot()
         if not bot._initialized:
@@ -557,8 +593,17 @@ def chat_stream(request: ChatRequest):
 
 
 @app.post("/api/upload", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...), user_id: Optional[str] = Form(None), db: Session = Depends(get_db)):
+async def upload_document(
+    file: UploadFile = File(...),
+    user_id: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Upload and index a document (PDF, CSV, TXT, MD, DOCX)"""
+    if user_id:
+        require_owner(user_id, current_user_id)
+    else:
+        user_id = current_user_id
     try:
         bot = get_bot()
         if not bot._initialized:
@@ -576,7 +621,8 @@ async def upload_document(file: UploadFile = File(...), user_id: Optional[str] =
             )
         
         # Save file
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        safe_filename = os.path.basename(file.filename)
+        file_path = os.path.join(UPLOAD_DIR, safe_filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
@@ -589,21 +635,20 @@ async def upload_document(file: UploadFile = File(...), user_id: Optional[str] =
         # Extract chunks indexed from message
         chunks_indexed = 0
         if "Indexed" in result["message"]:
-            import re
             match = re.search(r'Indexed (\d+) chunks', result["message"])
             if match:
                 chunks_indexed = int(match.group(1))
-        
+
         # Log to database if user_id provided
         doc_record = None
         if user_id:
             try:
                 doc_record = crud.create_document(
-                    db, user_id, file.filename, file_path, 
+                    db, user_id, safe_filename, file_path,
                     file_ext, file_size, chunks_indexed
                 )
                 crud.log_event(db, user_id, "upload", {
-                    "filename": file.filename,
+                    "filename": safe_filename,
                     "file_type": file_ext,
                     "chunks": chunks_indexed
                 })
@@ -710,8 +755,9 @@ def login_user(credentials: UserLogin, db: Session = Depends(get_db)):
 
 
 @app.get("/api/users/{user_id}/profile")
-def get_user_profile(user_id: str, db: Session = Depends(get_db)):
+def get_user_profile(user_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Get user profile"""
+    require_owner(user_id, current_user_id)
     user = crud.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -719,8 +765,9 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
 
 
 @app.put("/api/users/{user_id}/profile")
-def update_profile(user_id: str, profile: UserProfile, db: Session = Depends(get_db)):
+def update_profile(user_id: str, profile: UserProfile, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Update user profile"""
+    require_owner(user_id, current_user_id)
     try:
         updated_user = crud.update_user_profile(db, user_id, profile.dict())
         if not updated_user:
@@ -741,8 +788,9 @@ def update_profile(user_id: str, profile: UserProfile, db: Session = Depends(get
 
 
 @app.post("/api/users/{user_id}/change-password")
-def change_password(user_id: str, pwd_change: ChangePassword, db: Session = Depends(get_db)):
+def change_password(user_id: str, pwd_change: ChangePassword, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Change user password"""
+    require_owner(user_id, current_user_id)
     try:
         user = crud.get_user_by_id(db, user_id)
         if not user:
@@ -769,8 +817,9 @@ def change_password(user_id: str, pwd_change: ChangePassword, db: Session = Depe
 
 
 @app.delete("/api/users/{user_id}")
-def delete_account(user_id: str, db: Session = Depends(get_db)):
+def delete_account(user_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Delete user account"""
+    require_owner(user_id, current_user_id)
     try:
         user = crud.get_user_by_id(db, user_id)
         if not user:
@@ -793,8 +842,9 @@ def delete_account(user_id: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/users/{user_id}/sessions")
-def create_session(user_id: str, session_data: ChatSessionCreate, db: Session = Depends(get_db)):
+def create_session(user_id: str, session_data: ChatSessionCreate, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Create a new chat session"""
+    require_owner(user_id, current_user_id)
     try:
         session = crud.create_chat_session(db, user_id, session_data.title)
         return {
@@ -806,8 +856,9 @@ def create_session(user_id: str, session_data: ChatSessionCreate, db: Session = 
 
 
 @app.get("/api/users/{user_id}/sessions")
-def get_user_sessions(user_id: str, db: Session = Depends(get_db)):
+def get_user_sessions(user_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Get all chat sessions for a user"""
+    require_owner(user_id, current_user_id)
     try:
         sessions = crud.get_user_chat_sessions(db, user_id)
         return {
@@ -818,8 +869,12 @@ def get_user_sessions(user_id: str, db: Session = Depends(get_db)):
 
 
 @app.get("/api/sessions/{session_id}/messages")
-def get_session_messages(session_id: str, db: Session = Depends(get_db)):
+def get_session_messages(session_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Get all messages in a session"""
+    session = crud.get_chat_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    require_owner(session.user_id, current_user_id)
     try:
         messages = crud.get_session_messages(db, session_id)
         return {
@@ -843,12 +898,13 @@ class CreateMessagePairRequest(BaseModel):
     response_time: Optional[float] = None
 
 @app.post("/api/sessions/{session_id}/messages")
-def add_session_messages(session_id: str, request: CreateMessagePairRequest, db: Session = Depends(get_db)):
+def add_session_messages(session_id: str, request: CreateMessagePairRequest, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Persist a user+assistant message pair to an existing session (used by voice assistant)."""
     try:
         session = crud.get_chat_session(db, session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
+        require_owner(session.user_id, current_user_id)
         user_msg = crud.create_chat_message(db, session_id, "user", request.userMessage)
         assistant_msg = crud.create_chat_message(
             db, session_id, "assistant", request.assistantMessage,
@@ -867,9 +923,13 @@ def add_session_messages(session_id: str, request: CreateMessagePairRequest, db:
 
 
 @app.delete("/api/sessions/{session_id}")
-def delete_session(session_id: str, db: Session = Depends(get_db)):
+def delete_session(session_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Delete a chat session"""
     try:
+        session = crud.get_chat_session(db, session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        require_owner(session.user_id, current_user_id)
         deleted = crud.delete_chat_session(db, session_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -881,9 +941,13 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
 
 
 @app.put("/api/sessions/{session_id}/title")
-def update_session_title(session_id: str, session_data: ChatSessionUpdate, db: Session = Depends(get_db)):
+def update_session_title(session_id: str, session_data: ChatSessionUpdate, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Update the title of a chat session"""
     try:
+        existing = crud.get_chat_session(db, session_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Session not found")
+        require_owner(existing.user_id, current_user_id)
         session = crud.update_chat_session_title(db, session_id, session_data.title)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -895,8 +959,9 @@ def update_session_title(session_id: str, session_data: ChatSessionUpdate, db: S
 
 
 @app.get("/api/users/{user_id}/documents")
-def get_user_documents(user_id: str, db: Session = Depends(get_db)):
+def get_user_documents(user_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Get all documents for a user"""
+    require_owner(user_id, current_user_id)
     try:
         documents = crud.get_user_documents(db, user_id)
         return {
@@ -907,12 +972,14 @@ def get_user_documents(user_id: str, db: Session = Depends(get_db)):
 
 
 @app.delete("/api/documents/{document_id}")
-def delete_document(document_id: str, db: Session = Depends(get_db)):
+def delete_document(document_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Delete a user-uploaded document (DB record, file on disk, and vector store chunks)"""
     try:
         doc = crud.get_document(db, document_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
+
+        require_owner(doc.user_id, current_user_id)
 
         filename = doc.filename
         file_path = doc.file_path
@@ -926,8 +993,11 @@ def delete_document(document_id: str, db: Session = Depends(get_db)):
             print(f"\u26a0\ufe0f Failed to remove chunks from vector store: {e}")
 
         # 2. Delete the physical file (only from uploads/)
-        if file_path and os.path.exists(file_path) and UPLOAD_DIR in os.path.abspath(file_path):
-            os.remove(file_path)
+        if file_path and os.path.exists(file_path):
+            resolved = Path(file_path).resolve()
+            upload_root = Path(UPLOAD_DIR).resolve()
+            if resolved.is_relative_to(upload_root):
+                os.remove(file_path)
 
         # 3. Delete the DB record
         crud.delete_document(db, document_id)
@@ -940,8 +1010,9 @@ def delete_document(document_id: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/users/{user_id}/saved-messages")
-def save_message(user_id: str, message_data: SavedMessageCreate, db: Session = Depends(get_db)):
+def save_message(user_id: str, message_data: SavedMessageCreate, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Save a message for later reference"""
+    require_owner(user_id, current_user_id)
     try:
         saved = crud.save_message(
             db, user_id, message_data.messageId, message_data.content,
@@ -956,8 +1027,9 @@ def save_message(user_id: str, message_data: SavedMessageCreate, db: Session = D
 
 
 @app.get("/api/users/{user_id}/saved-messages")
-def get_saved_messages(user_id: str, db: Session = Depends(get_db)):
+def get_saved_messages(user_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Get all saved messages for a user"""
+    require_owner(user_id, current_user_id)
     try:
         messages = crud.get_user_saved_messages(db, user_id)
         return {
@@ -968,9 +1040,13 @@ def get_saved_messages(user_id: str, db: Session = Depends(get_db)):
 
 
 @app.delete("/api/saved-messages/{saved_id}")
-def delete_saved_message(saved_id: str, db: Session = Depends(get_db)):
+def delete_saved_message(saved_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Delete a saved message"""
     try:
+        saved = crud.get_saved_message(db, saved_id)
+        if not saved:
+            raise HTTPException(status_code=404, detail="Saved message not found")
+        require_owner(saved.user_id, current_user_id)
         deleted = crud.delete_saved_message(db, saved_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Saved message not found")
@@ -1002,8 +1078,9 @@ def get_query_distribution(days: int = 7, db: Session = Depends(get_db)):
 
 
 @app.get("/api/users/{user_id}/analytics")
-def get_user_analytics(user_id: str, days: int = 30, db: Session = Depends(get_db)):
+def get_user_analytics(user_id: str, days: int = 30, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     """Get analytics for a specific user"""
+    require_owner(user_id, current_user_id)
     try:
         analytics = crud.get_user_analytics(db, user_id, days)
         return {
@@ -1176,22 +1253,49 @@ Available data-assistant-ids: sidebar, chat-input, file-upload, tax-form, profil
 Keep replies concise (under 120 words) and conversational. If the user speaks Hindi, reply in Hindi.
 """
 
-# ── Voice assistant rate limiter ─────────────────────────────────
-from collections import defaultdict as _defaultdict
+# ── Rate limiter (shared helper) ─────────────────────────────────
 
-_voice_rate_buckets: dict[str, list[float]] = _defaultdict(list)
+def _rate_limit_check(buckets: dict, key: str, max_requests: int, window_secs: int, message: str) -> None:
+    """Raise 429 if key exceeds max_requests within window_secs. Evicts emptied keys to bound memory."""
+    now = time.time()
+    pruned = [t for t in buckets.get(key, []) if now - t < window_secs]
+    if pruned:
+        buckets[key] = pruned
+    else:
+        buckets.pop(key, None)
+    if len(pruned) >= max_requests:
+        raise HTTPException(status_code=429, detail=message)
+    buckets.setdefault(key, []).append(now)
+
+
+_voice_rate_buckets: dict = {}
 _VOICE_MAX_REQUESTS = 10   # per window
 _VOICE_WINDOW_SECS  = 60   # 1 minute
 
 def _voice_rate_check(user_id: str) -> None:
     """Raise 429 if user exceeds voice assistant rate limit."""
-    now = time.time()
-    bucket = _voice_rate_buckets[user_id]
-    # Prune expired entries
-    _voice_rate_buckets[user_id] = [t for t in bucket if now - t < _VOICE_WINDOW_SECS]
-    if len(_voice_rate_buckets[user_id]) >= _VOICE_MAX_REQUESTS:
-        raise HTTPException(status_code=429, detail="Too many voice requests. Please wait a moment.")
-    _voice_rate_buckets[user_id].append(now)
+    _rate_limit_check(_voice_rate_buckets, user_id, _VOICE_MAX_REQUESTS, _VOICE_WINDOW_SECS,
+                       "Too many voice requests. Please wait a moment.")
+
+
+_chat_rate_buckets: dict = {}
+_CHAT_MAX_REQUESTS = 20   # per window
+_CHAT_WINDOW_SECS  = 60   # 1 minute
+
+def _chat_rate_check(key: str) -> None:
+    """Raise 429 if key exceeds chat rate limit."""
+    _rate_limit_check(_chat_rate_buckets, key, _CHAT_MAX_REQUESTS, _CHAT_WINDOW_SECS,
+                       "Too many chat requests. Please slow down.")
+
+
+_tts_rate_buckets: dict = {}
+_TTS_MAX_REQUESTS = 20   # per window
+_TTS_WINDOW_SECS  = 60   # 1 minute
+
+def _tts_rate_check(key: str) -> None:
+    """Raise 429 if key exceeds TTS rate limit."""
+    _rate_limit_check(_tts_rate_buckets, key, _TTS_MAX_REQUESTS, _TTS_WINDOW_SECS,
+                       "Too many TTS requests. Please slow down.")
 
 
 # ── Prompt injection sanitization ────────────────────────────────
@@ -1493,8 +1597,10 @@ class TTSRequest(BaseModel):
     text: str
 
 @app.post("/api/tts")
-def text_to_speech(request: TTSRequest):
+def text_to_speech(request: TTSRequest, http_request: Request):
     """Convert text to speech using OpenAI TTS. Returns streaming audio/mpeg."""
+    _tts_rate_check(http_request.client.host if http_request.client else "unknown")
+
     from openai import OpenAI
 
     api_key = os.getenv("OPENAI_API_KEY")
